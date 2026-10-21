@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 
 /**
- * Komponen InputText Reusable & Modular (Sesuai Desain Figma HadirIn)
+ * Komponen InputText Reusable & Modular (Sesuai Desain Figma HadirIn B2B)
  */
 export default function InputText({
   label,
@@ -13,6 +13,7 @@ export default function InputText({
   value,
   onChange,
   error = '',
+  helperText = '',
   required = false,
   disabled = false,
   className = '',
@@ -70,11 +71,15 @@ export default function InputText({
         )}
       </div>
 
-      {error && (
+      {error ? (
         <p id={`${name}-error`} className="mt-1.5 text-[12px] text-red-600 font-medium">
           {error}
         </p>
-      )}
+      ) : helperText ? (
+        <p className="mt-1.5 text-[12px] text-[#666]">
+          {helperText}
+        </p>
+      ) : null}
     </div>
   );
 }

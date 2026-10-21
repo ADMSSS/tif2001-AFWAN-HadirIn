@@ -1,189 +1,140 @@
 import { useState } from 'react';
-import { QrCode, Camera, Clock } from 'lucide-react';
+import { QrCode, Fingerprint, MapPin, Crown, ArrowLeft } from 'lucide-react';
 import { z } from 'zod';
 import InputText from '../components/InputText';
 import PrimaryButton from '../components/PrimaryButton';
+import { authService } from '../services/api';
 
-// ─── Validation Schemas ───────────────────────────────────────────────────────
-const loginSchema = z.object({
-  email: z.string().min(1, 'Email wajib diisi').email('Format email tidak valid'),
-  password: z.string().min(6, 'Minimal 6 karakter'),
+// ─── Zod Validation Schemas (Multi-Tenant B2B) ────────────────────────────────
+const tenantLoginSchema = z.object({
+  companyCode: z
+    .string()
+    .min(1, 'Kode perusahaan wajib diisi')
+    .min(2, 'Kode perusahaan minimal 2 karakter')
+    .max(10, 'Kode perusahaan maksimal 10 karakter'),
+  nik: z
+    .string()
+    .min(1, 'NIK / ID Karyawan wajib diisi')
+    .min(4, 'NIK minimal 4 digit karakter'),
+  password: z
+    .string()
+    .min(1, 'Kata sandi wajib diisi')
+    .min(6, 'Kata sandi minimal 6 karakter'),
 });
 
-const registerSchema = z.object({
-  name: z.string().min(1, 'Nama lengkap wajib diisi').min(3, 'Minimal 3 karakter'),
-  email: z.string().min(1, 'Email wajib diisi').email('Format email tidak valid'),
-  password: z.string().min(6, 'Minimal 6 karakter'),
+const superAdminLoginSchema = z.object({
+  email: z
+    .string()
+    .min(1, 'Email Super Admin wajib diisi')
+    .email('Format email tidak valid'),
+  password: z
+    .string()
+    .min(1, 'Kata sandi wajib diisi')
+    .min(6, 'Kata sandi minimal 6 karakter'),
 });
 
-// ─── Login Form ───────────────────────────────────────────────────────────────
-function LoginForm() {
-  const [form, setForm] = useState({ email: '', password: '' });
-  const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(false);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
-    if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const result = loginSchema.safeParse(form);
-    if (!result.success) {
-      const errs = {};
-      result.error.errors.forEach(err => { errs[err.path[0]] = err.message; });
-      setErrors(errs);
-      return;
-    }
-    setErrors({});
-    setLoading(true);
-    // Diintegrasikan dengan backend endpoint pada Pertemuan 7
-    await new Promise(r => setTimeout(r, 1000));
-    setLoading(false);
-  };
-
-  return (
-    <div>
-      <h2 className="text-[26px] font-extrabold text-[#111] tracking-tight leading-tight mb-1">
-        Selamat datang kembali
-      </h2>
-      <p className="text-[14px] text-[#666] mb-7 leading-relaxed">
-        Masuk untuk absen atau{' '}
-        <span className="text-[#8a6c00] underline decoration-dotted cursor-pointer">
-          memantau kehadiran tim
-        </span>
-        .
-      </p>
-
-      <form onSubmit={handleSubmit} noValidate>
-        <InputText
-          id="login-email"
-          label="Email"
-          name="email"
-          type="email"
-          value={form.email}
-          onChange={handleChange}
-          placeholder="nama@perusahaan.id"
-          error={errors.email}
-        />
-
-        <InputText
-          id="login-password"
-          label="Kata Sandi"
-          name="password"
-          type="password"
-          value={form.password}
-          onChange={handleChange}
-          placeholder="Minimal 6 karakter"
-          error={errors.password}
-        />
-
-        <div className="pt-2">
-          <PrimaryButton type="submit" loading={loading}>
-            Masuk
-          </PrimaryButton>
-        </div>
-      </form>
-    </div>
-  );
-}
-
-// ─── Register Form ────────────────────────────────────────────────────────────
-function RegisterForm() {
-  const [form, setForm] = useState({ name: '', email: '', password: '' });
-  const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(false);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
-    if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const result = registerSchema.safeParse(form);
-    if (!result.success) {
-      const errs = {};
-      result.error.errors.forEach(err => { errs[err.path[0]] = err.message; });
-      setErrors(errs);
-      return;
-    }
-    setErrors({});
-    setLoading(true);
-    // Diintegrasikan dengan backend endpoint pada Pertemuan 7
-    await new Promise(r => setTimeout(r, 1000));
-    setLoading(false);
-  };
-
-  return (
-    <div>
-      <h2 className="text-[26px] font-extrabold text-[#111] tracking-tight leading-tight mb-1">
-        Buat akun HadirIn
-      </h2>
-      <p className="text-[14px] text-[#666] mb-7 leading-relaxed">
-        Gunakan email berawalan &ldquo;admin&rdquo; untuk mendaftar sebagai{' '}
-        <span className="text-[#8a6c00] underline decoration-dotted cursor-pointer font-semibold">
-          Admin
-        </span>
-        .
-      </p>
-
-      <form onSubmit={handleSubmit} noValidate>
-        <InputText
-          id="reg-name"
-          label="Nama Lengkap"
-          name="name"
-          value={form.name}
-          onChange={handleChange}
-          placeholder="Contoh: Dewi Lestari"
-          error={errors.name}
-        />
-
-        <InputText
-          id="reg-email"
-          label="Email"
-          name="email"
-          type="email"
-          value={form.email}
-          onChange={handleChange}
-          placeholder="nama@perusahaan.id"
-          error={errors.email}
-        />
-
-        <InputText
-          id="reg-password"
-          label="Kata Sandi"
-          name="password"
-          type="password"
-          value={form.password}
-          onChange={handleChange}
-          placeholder="Minimal 6 karakter"
-          error={errors.password}
-        />
-
-        <div className="pt-2">
-          <PrimaryButton type="submit" loading={loading}>
-            Daftar &amp; Masuk
-          </PrimaryButton>
-        </div>
-      </form>
-    </div>
-  );
-}
-
-// ─── Main Auth Page ───────────────────────────────────────────────────────────
 export default function AuthPage() {
-  const [activeTab, setActiveTab] = useState('masuk');
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+
+  // Form State Karyawan & Admin Perusahaan
+  const [tenantForm, setTenantForm] = useState({
+    companyCode: '',
+    nik: '',
+    password: '',
+  });
+
+  // Form State Super Admin
+  const [adminForm, setAdminForm] = useState({
+    email: '',
+    password: '',
+  });
+
+  const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [feedback, setFeedback] = useState(null);
+
+  const handleTenantChange = (e) => {
+    const { name, value } = e.target;
+    // Auto-uppercase untuk kode perusahaan
+    const val = name === 'companyCode' ? value.toUpperCase() : value;
+    setTenantForm((prev) => ({ ...prev, [name]: val }));
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: '' }));
+    if (feedback) setFeedback(null);
+  };
+
+  const handleAdminChange = (e) => {
+    const { name, value } = e.target;
+    setAdminForm((prev) => ({ ...prev, [name]: value }));
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: '' }));
+    if (feedback) setFeedback(null);
+  };
+
+  const handleTenantSubmit = async (e) => {
+    e.preventDefault();
+    const result = tenantLoginSchema.safeParse(tenantForm);
+    if (!result.success) {
+      const errs = {};
+      result.error.errors.forEach((err) => {
+        errs[err.path[0]] = err.message;
+      });
+      setErrors(errs);
+      return;
+    }
+
+    setErrors({});
+    setLoading(true);
+    setFeedback(null);
+
+    try {
+      await authService.loginTenant(tenantForm);
+      setFeedback({ type: 'success', message: 'Autentikasi berhasil! Mengalihkan...' });
+    } catch {
+      // Mocking interaksi lokal sebelum backend multi-tenant live
+      await new Promise((r) => setTimeout(r, 900));
+      setFeedback({
+        type: 'info',
+        message: `Kredensial ${tenantForm.companyCode} / ${tenantForm.nik} tervalidasi. Siap terhubung ke endpoint backend.`,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAdminSubmit = async (e) => {
+    e.preventDefault();
+    const result = superAdminLoginSchema.safeParse(adminForm);
+    if (!result.success) {
+      const errs = {};
+      result.error.errors.forEach((err) => {
+        errs[err.path[0]] = err.message;
+      });
+      setErrors(errs);
+      return;
+    }
+
+    setErrors({});
+    setLoading(true);
+    setFeedback(null);
+
+    try {
+      await authService.loginSuperAdmin(adminForm);
+      setFeedback({ type: 'success', message: 'Login Super Admin berhasil!' });
+    } catch {
+      await new Promise((r) => setTimeout(r, 900));
+      setFeedback({
+        type: 'info',
+        message: 'Portal Super Admin tervalidasi di sisi klien.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="flex min-h-screen">
-
-      {/* ════ LEFT PANEL — Neon Lime ════ */}
+      {/* ════ LEFT PANEL — Neon Lime (#ccff00) ════ */}
       <div
-        className="hidden lg:flex lg:w-[52%] flex-col justify-between p-10 relative overflow-hidden"
+        className="hidden lg:flex lg:w-[50%] xl:w-[52%] flex-col justify-between p-10 xl:p-12 relative overflow-hidden"
         style={{
           backgroundColor: '#ccff00',
           backgroundImage: `repeating-linear-gradient(
@@ -195,95 +146,251 @@ export default function AuthPage() {
           )`,
         }}
       >
-        {/* Top: Logo + Badge */}
+        {/* Top Header: Logo + Badge B2B */}
         <div className="flex items-center justify-between relative z-10">
           <div className="flex items-center">
-            <span className="text-[26px] font-extrabold text-[#111] tracking-tight leading-none">
+            <span className="text-[28px] font-extrabold text-[#111] tracking-tight leading-none">
               Hadir
             </span>
-            <span className="text-[26px] font-extrabold text-white tracking-tight leading-none bg-[#111] px-[5px] ml-[2px]">
+            <span className="text-[28px] font-extrabold text-white tracking-tight leading-none bg-[#111] px-[6px] py-[1px] ml-[2px]">
               In
             </span>
           </div>
-          <span className="border border-[#111] text-[#111] text-[10px] font-bold tracking-[0.18em] uppercase px-3 py-[5px] rounded-full">
-            Absensi Karyawan
+
+          <span className="border border-[#111] text-[#111] text-[10px] font-extrabold tracking-[0.16em] uppercase px-3.5 py-1.5 rounded-full">
+            PLATFORM PRESENSI B2B
           </span>
         </div>
 
-        {/* Middle: Tagline + Big Headline */}
-        <div className="relative z-10">
-          <p className="text-[11px] font-bold tracking-[0.22em] uppercase text-[#333] mb-5">
-            Masuk tepat waktu. Pulang tercatat.
+        {/* Center: Tagline + Main Headline */}
+        <div className="relative z-10 my-auto py-12">
+          <p className="text-[11px] font-bold tracking-[0.2em] uppercase text-[#333] mb-5">
+            SATU PLATFORM. BANYAK PERUSAHAAN. DATA TAK PERNAH BERTABRAKAN.
           </p>
+
           <h1
-            className="font-extrabold text-[#111] leading-[1.04] tracking-[-0.01em]"
-            style={{ fontSize: 'clamp(40px, 4.5vw, 60px)' }}
+            className="font-extrabold text-[#111] leading-[1.04] tracking-[-0.02em]"
+            style={{ fontSize: 'clamp(38px, 4.3vw, 58px)' }}
           >
-            Satu ketukan,<br />
-            kehadiran<br />
-            <span className="bg-[#111] text-white px-3 py-[4px] inline-block mt-2 leading-tight">
-              terbukti.
+            Hadir di kantor,<br />
+            bukan di<br />
+            <span className="bg-[#111] text-white px-3.5 py-[5px] inline-block mt-2 leading-tight">
+              peta palsu.
             </span>
           </h1>
         </div>
 
-        {/* Bottom: Features */}
-        <div className="relative z-10 border-t border-[#111]/20 pt-5">
+        {/* Bottom: Layered Anti-Spoofing Features */}
+        <div className="relative z-10 border-t border-[#111]/20 pt-6">
           <div className="flex gap-8 sm:gap-10">
-            {[
-              { Icon: QrCode, title: 'QR', sub: 'Scan Cepat' },
-              { Icon: Camera, title: 'Kamera', sub: 'Verifikasi Wajah' },
-              { Icon: Clock, title: '2 Shift', sub: 'Pagi & Malam' },
-            ].map(({ Icon, title, sub }) => (
-              <div key={title}>
-                <div className="flex items-center gap-1.5 mb-0.5">
-                  <Icon size={16} className="text-[#111]" strokeWidth={2.5} />
-                  <span className="text-[15px] font-extrabold text-[#111]">{title}</span>
-                </div>
-                <p className="text-[10px] font-bold tracking-[0.16em] uppercase text-[#444]">{sub}</p>
+            {/* Feature 1: Dynamic Rolling QR */}
+            <div>
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <QrCode size={17} className="text-[#111]" strokeWidth={2.4} />
+                <span className="text-[15px] font-extrabold text-[#111]">
+                  <span className="underline decoration-2 underline-offset-2">QR</span> berputar
+                </span>
               </div>
-            ))}
+              <p className="text-[10px] font-bold tracking-[0.14em] uppercase text-[#444]">
+                KODE BARU TIAP 15 DETIK
+              </p>
+            </div>
+
+            {/* Feature 2: Live Camera Capture */}
+            <div>
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <Fingerprint size={17} className="text-[#111]" strokeWidth={2.4} />
+                <span className="text-[15px] font-extrabold text-[#111]">
+                  Foto langsung
+                </span>
+              </div>
+              <p className="text-[10px] font-bold tracking-[0.14em] uppercase text-[#444]">
+                TANPA UNGGAH GALERI
+              </p>
+            </div>
+
+            {/* Feature 3: Geofence 50m */}
+            <div>
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <MapPin size={17} className="text-[#111]" strokeWidth={2.4} />
+                <span className="text-[15px] font-extrabold text-[#111]">
+                  Geofence 50 m
+                </span>
+              </div>
+              <p className="text-[10px] font-bold tracking-[0.14em] uppercase text-[#444]">
+                HAVERSINE + IP KANTOR
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* ════ RIGHT PANEL — Cream ════ */}
+      {/* ════ RIGHT PANEL — Cream (#f5f0e8) ════ */}
       <div
-        className="flex-1 flex flex-col justify-center px-8 sm:px-14 py-12 overflow-y-auto"
+        className="flex-1 flex flex-col justify-center px-8 sm:px-14 lg:px-16 py-12 overflow-y-auto"
         style={{ backgroundColor: '#f5f0e8' }}
       >
         <div className="w-full max-w-[420px] mx-auto">
-
-          {/* Tab Switcher */}
-          <div className="flex border border-[#111] mb-8">
-            <button
-              type="button"
-              onClick={() => setActiveTab('masuk')}
-              className={[
-                'flex-1 h-[48px] text-[14px] font-bold tracking-wide transition-colors cursor-pointer',
-                activeTab === 'masuk'
-                  ? 'bg-[#111] text-white'
-                  : 'bg-white text-[#111] hover:bg-gray-100',
-              ].join(' ')}
+          {/* Feedback Banner */}
+          {feedback && (
+            <div
+              className={`mb-6 p-3 text-xs font-semibold rounded-none border ${
+                feedback.type === 'success'
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                  : 'bg-amber-50 text-amber-900 border-amber-300'
+              }`}
             >
-              Masuk
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('daftar')}
-              className={[
-                'flex-1 h-[48px] text-[14px] font-bold tracking-wide transition-colors cursor-pointer',
-                activeTab === 'daftar'
-                  ? 'bg-[#111] text-[#ccff00]'
-                  : 'bg-white text-[#111] hover:bg-gray-100',
-              ].join(' ')}
-            >
-              Daftar
-            </button>
-          </div>
+              {feedback.message}
+            </div>
+          )}
 
-          {/* Form */}
-          {activeTab === 'masuk' ? <LoginForm /> : <RegisterForm />}
+          {!isSuperAdmin ? (
+            /* ── FORM 1: Karyawan & Admin Perusahaan ── */
+            <div>
+              <div className="mb-8">
+                <p className="text-[11px] font-bold tracking-[0.16em] uppercase text-[#666] mb-1.5">
+                  KARYAWAN &amp; ADMIN PERUSAHAAN
+                </p>
+                <h2 className="text-[28px] font-extrabold text-[#111] tracking-tight leading-tight mb-2">
+                  Masuk ke ruang kerja Anda
+                </h2>
+                <p className="text-[14px] text-[#666] leading-relaxed">
+                  Akun dibuat oleh Admin Perusahaan Anda. Tidak ada pendaftaran mandiri.
+                </p>
+              </div>
+
+              <form onSubmit={handleTenantSubmit} noValidate>
+                {/* Kode Perusahaan */}
+                <InputText
+                  id="login-companyCode"
+                  label="KODE PERUSAHAAN"
+                  name="companyCode"
+                  type="text"
+                  value={tenantForm.companyCode}
+                  onChange={handleTenantChange}
+                  placeholder="Contoh: NLG"
+                  helperText="Diberikan oleh admin perusahaan, mis. NLG"
+                  error={errors.companyCode}
+                  disabled={loading}
+                />
+
+                {/* NIK */}
+                <InputText
+                  id="login-nik"
+                  label="NIK"
+                  name="nik"
+                  type="text"
+                  value={tenantForm.nik}
+                  onChange={handleTenantChange}
+                  placeholder="3173014505950002"
+                  error={errors.nik}
+                  disabled={loading}
+                />
+
+                {/* Kata Sandi */}
+                <InputText
+                  id="login-password"
+                  label="KATA SANDI"
+                  name="password"
+                  type="password"
+                  value={tenantForm.password}
+                  onChange={handleTenantChange}
+                  placeholder="Minimal 6 karakter"
+                  error={errors.password}
+                  disabled={loading}
+                />
+
+                <div className="pt-2">
+                  <PrimaryButton type="submit" loading={loading}>
+                    Masuk
+                  </PrimaryButton>
+                </div>
+              </form>
+
+              {/* Link Super Admin */}
+              <div className="mt-8 text-center sm:text-left">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSuperAdmin(true);
+                    setErrors({});
+                    setFeedback(null);
+                  }}
+                  className="inline-flex items-center gap-1.5 text-[13px] font-bold text-[#111] hover:text-[#444] transition-colors cursor-pointer group"
+                >
+                  <Crown size={15} className="text-[#888] group-hover:text-[#111]" />
+                  <span className="underline decoration-1 underline-offset-4">
+                    Masuk sebagai Super Admin platform
+                  </span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* ── FORM 2: Super Admin Platform Owner ── */
+            <div>
+              <div className="mb-8">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider bg-[#111] text-[#ccff00]">
+                    <Crown size={12} />
+                    Platform Owner
+                  </span>
+                </div>
+                <h2 className="text-[28px] font-extrabold text-[#111] tracking-tight leading-tight mb-2">
+                  Portal Super Admin
+                </h2>
+                <p className="text-[14px] text-[#666] leading-relaxed">
+                  Provisioning tenant perusahaan, manajemen lisensi &amp; monitoring isolasi basis data.
+                </p>
+              </div>
+
+              <form onSubmit={handleAdminSubmit} noValidate>
+                <InputText
+                  id="admin-email"
+                  label="EMAIL SUPER ADMIN"
+                  name="email"
+                  type="email"
+                  value={adminForm.email}
+                  onChange={handleAdminChange}
+                  placeholder="superadmin@hadirin.id"
+                  error={errors.email}
+                  disabled={loading}
+                />
+
+                <InputText
+                  id="admin-password"
+                  label="KATA SANDI PLATFORM"
+                  name="password"
+                  type="password"
+                  value={adminForm.password}
+                  onChange={handleAdminChange}
+                  placeholder="Masukkan kata sandi master"
+                  error={errors.password}
+                  disabled={loading}
+                />
+
+                <div className="pt-2">
+                  <PrimaryButton type="submit" loading={loading}>
+                    Masuk Super Admin
+                  </PrimaryButton>
+                </div>
+              </form>
+
+              <div className="mt-8 text-center sm:text-left">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSuperAdmin(false);
+                    setErrors({});
+                    setFeedback(null);
+                  }}
+                  className="inline-flex items-center gap-1.5 text-[13px] font-bold text-[#111] hover:text-[#444] transition-colors cursor-pointer"
+                >
+                  <ArrowLeft size={15} />
+                  <span>Kembali ke login karyawan &amp; admin perusahaan</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

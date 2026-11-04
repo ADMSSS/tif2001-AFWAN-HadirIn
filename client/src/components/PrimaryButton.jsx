@@ -1,7 +1,7 @@
 import { ArrowRight } from 'lucide-react';
 
 /**
- * Komponen PrimaryButton Modular (Sesuai Desain Figma HadirIn v3)
+ * Komponen PrimaryButton (Dikonversi 1:1 dari Figma Make ui.tsx & AuthPage.tsx)
  */
 export default function PrimaryButton({
   children,
@@ -20,17 +20,17 @@ export default function PrimaryButton({
       onClick={onClick}
       disabled={isDisabled}
       className={[
-        'w-full h-[52px] bg-[#14170f] text-[#c5f82a] font-bold text-[15px] rounded-[4px]',
-        'shadow-[3px_3px_0px_#c5f82a] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[2px_2px_0px_#c5f82a]',
-        'flex items-center justify-between px-5 transition-all',
-        'hover:bg-[#1e2217]',
-        'disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer',
+        'group w-full flex items-center justify-between bg-foreground text-accent font-display font-bold text-lg lg:text-2xl px-5 lg:px-8 py-4 lg:py-6 rounded-md',
+        'shadow-[4px_4px_0_0_#c9f23c] border-2 border-foreground',
+        'hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0_0_#c9f23c] transition-all',
+        'focus-visible:outline-2 focus-visible:outline-offset-2',
+        'disabled:opacity-50 disabled:pointer-events-none cursor-pointer',
         className,
       ].join(' ')}
       {...props}
     >
       <span>{loading ? 'Memproses...' : children}</span>
-      {!loading && <ArrowRight size={18} strokeWidth={2.2} className="text-[#c5f82a]" />}
+      <ArrowRight className="w-5 h-5 lg:w-7 lg:h-7 transition-transform group-hover:translate-x-1" />
     </button>
   );
 }

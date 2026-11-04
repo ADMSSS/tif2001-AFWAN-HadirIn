@@ -3,6 +3,9 @@ import { StoreContext, dateKey, isWeekendDate } from '../utils/formatters';
 import { offsetMeters } from '../utils/geo';
 import { attendanceService, journalService } from '../services/api';
 
+// Catatan: Akan diubah menjadi true pada akhir proyek setelah seluruh halaman (Karyawan, Admin, Super Admin) selesai
+export const REALTIME_CLOCK_ONLY = false;
+
 const INITIAL_TENANTS = [
   {
     id: 't-nlg',
@@ -50,7 +53,6 @@ function buildInitialAttendances(todayDate) {
     todayDate.getDate()
   );
 
-  // Riwayat 29 hari ke belakang (hari ini 4 Nov belum presensi masuk sehingga muncul "Anda belum presensi" seperti Gambar 1)
   for (let i = 29; i >= 1; i -= 1) {
     const d = new Date(base);
     d.setDate(d.getDate() - i);
@@ -59,20 +61,14 @@ function buildInitialAttendances(todayDate) {
     const dayNum = d.getDate();
 
     const isSameMonth = d.getMonth() === base.getMonth();
-    // Tanggal tidak hadir (putih) sesuai kalender gambar 1: tgl 21 & 30 Oktober
-    if (!isSameMonth && (dayNum === 21 || dayNum === 30)) {
+    if (!isSameMonth && (dayNum === 16 || dayNum === 19 || dayNum === 29)) {
       continue;
     }
 
-    // Tanggal terlambat (merah) sesuai kalender gambar 1: tgl 8, 20, 22, 26 Oktober & 3 November (i === 1)
     const isLate =
-      (!isSameMonth &&
-        (dayNum === 8 || dayNum === 20 || dayNum === 22 || dayNum === 26)) ||
+      (!isSameMonth && (dayNum === 8 || dayNum === 20 || dayNum === 22 || dayNum === 26)) ||
       i === 1;
 
-    // Khusus 2 Nov (i === 2) dan 3 Nov (i === 1) samakan persis dengan tabel Arsip Riwayat Presensi di Gambar 4:
-    // Sen, 2 Nov: Masuk 08:00, Keluar 17:21 (9j 21m), Jarak 4 m, Status TEPAT
-    // Sel, 3 Nov: Masuk 08:16, Keluar 17:06 (8j 50m), Jarak 34 m, Status TERLAMBAT
     const inMinute = i === 2 ? 0 : i === 1 ? 16 : isLate ? 18 : 2;
     const outMinute = i === 2 ? 21 : i === 1 ? 6 : 5;
     const dist = i === 2 ? 4 : i === 1 ? 34 : 12;
@@ -109,8 +105,28 @@ function buildInitialAttendances(todayDate) {
   return list;
 }
 
+function buildDefaultTodayAttendance(baseDate) {
+  const todayKey = dateKey(baseDate);
+  return {
+    id: `att-${todayKey}`,
+    tenantId: 't-nlg',
+    userId: 'u-dewi',
+    date: todayKey,
+    checkIn: new Date(
+      baseDate.getFullYear(),
+      baseDate.getMonth(),
+      baseDate.getDate(),
+      8,
+      1,
+      0
+    ).toISOString(),
+    checkOut: undefined,
+    distance: 11,
+    status: 'tepat',
+  };
+}
+
 function buildInitialJournals() {
-  // 3 jurnal bulan November (2 dari 2-3 Nov + 1 tambahan) dengan status menunggu sehingga tampil 0/3 JURNAL DISETUJUI
   return [
     {
       id: 'jrn-2026-11-02-a',
@@ -154,42 +170,73 @@ function buildInitialJournals() {
 }
 
 export function AppStoreProvider({ children }) {
-  const [clockMode, setClockMode] = useState('kerja'); // 'kerja' (08:01 / 15:46) | 'pulang' (17:01:40)
-  const [now, setNow] = useState(() => new Date(2026, 10, 4, 8, 1, 15));
+  // 3 skenario waktu untuk pengujian UI:
+  // 'sore_pulang' (17:01:04 - sudah presensi masuk 08:01, muncul banner jurnal & tombol Presensi pulang)
+  // 'sore_kerja'  (15:25:57 - sudah presensi masuk 08:01, masih jam kerja)
+  // 'pagi_masuk'  (08:00:15 - belum presensi masuk, siap tes kamera & radar)
+  const [clockMode, setClockMode] = useState('sore_pulang');
+  const [now, setNow] = useState(() =>
+    REALTIME_CLOCK_ONLY ? new Date() : new Date(2026, 10, 4, 17, 1, 4)
+  );
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setNow((prev) => new Date(prev.getTime() + 1000));
+      if (REALTIME_CLOCK_ONLY) {
+        setNow(new Date());
+      } else {
+        setNow((prev) => new Date(prev.getTime() + 1000));
+      }
     }, 1000);
     return () => clearInterval(timer);
   }, []);
 
+  const baseDate = useMemo(() => new Date(2026, 10, 4, 8, 1, 0), []);
+  const [tenants] = useState(INITIAL_TENANTS);
+  const [users] = useState(INITIAL_USERS);
+  const [historyAttendances] = useState(() =>
+    buildInitialAttendances(baseDate)
+  );
+  // Menyimpan presensi hari ini; pada mode sore_kerja & sore_pulang otomatis terisi Bekerja sejak 08:01
+  const [todayAttendance, setTodayAttendance] = useState(() =>
+    buildDefaultTodayAttendance(baseDate)
+  );
+  const [journals, setJournals] = useState(() => buildInitialJournals());
+  const [consents] = useState([]);
+
   const cycleClockMode = () => {
+    if (REALTIME_CLOCK_ONLY) return;
     setClockMode((prev) => {
-      const next = prev === 'kerja' ? 'pulang' : 'kerja';
-      if (next === 'kerja') {
+      const next =
+        prev === 'sore_pulang'
+          ? 'sore_kerja'
+          : prev === 'sore_kerja'
+            ? 'pagi_masuk'
+            : 'sore_pulang';
+      if (next === 'sore_pulang') {
+        setNow(new Date(2026, 10, 4, 17, 1, 4));
+        setTodayAttendance((cur) => cur || buildDefaultTodayAttendance(baseDate));
+      } else if (next === 'sore_kerja') {
         setNow(new Date(2026, 10, 4, 15, 25, 57));
+        setTodayAttendance((cur) => cur || buildDefaultTodayAttendance(baseDate));
       } else {
-        setNow(new Date(2026, 10, 4, 17, 1, 40));
+        setNow(new Date(2026, 10, 4, 8, 0, 15));
+        setTodayAttendance(null);
       }
       return next;
     });
   };
 
-  const baseDate = useMemo(() => new Date(2026, 10, 4, 8, 1, 15), []);
-  const [tenants] = useState(INITIAL_TENANTS);
-  const [users] = useState(INITIAL_USERS);
-  const [attendances, setAttendances] = useState(() =>
-    buildInitialAttendances(baseDate)
-  );
-  const [journals, setJournals] = useState(() => buildInitialJournals());
-  const [consents] = useState([]);
-
   const todayKey = dateKey(now);
 
-  // Membaca lokasi GPS (prioritaskan titik dalam radius kantor ~11m, ±14m sesuai desain)
+  const attendances = useMemo(() => {
+    if (todayAttendance) {
+      return [...historyAttendances, todayAttendance];
+    }
+    return historyAttendances;
+  }, [historyAttendances, todayAttendance]);
+
   const readLocation = async (tenant) => {
-    await new Promise((resolve) => setTimeout(resolve, 450));
+    await new Promise((resolve) => setTimeout(resolve, 400));
     const pos = offsetMeters(tenant.office.lat, tenant.office.lng, 9, 6);
     return {
       lat: pos.lat,
@@ -268,31 +315,15 @@ export function AppStoreProvider({ children }) {
       };
     }
 
-    if (!hasTodayJournal) {
-      return {
-        ok: false,
-        code: 'NEED_JOURNAL_FIRST',
-        hasTodayJournal: false,
-        isPastWorkEnd: true,
-        reason:
-          'Jam kerja selesai. Anda wajib mengisi jurnal kerja hari ini terlebih dahulu sebelum presensi pulang.',
-      };
-    }
-
     return {
       ok: true,
-      code: 'OK',
-      hasTodayJournal: true,
+      code: hasTodayJournal ? 'OK' : 'NEED_JOURNAL_WARNING',
+      hasTodayJournal,
       isPastWorkEnd: true,
       reason: 'Jam kerja selesai. Anda bisa presensi pulang sekarang.',
     };
   };
 
-  /**
-   * Menyimpan Presensi Masuk:
-   * 1. Mengirim HTTP POST /api/v1/attendances/check-in ke backend database (jika backend aktif)
-   * 2. Menyimpan ke state aplikasi agar tabel Riwayat Presensi & Dasbor langsung ter-update
-   */
   const checkIn = async (userId, payload) => {
     const user = users.find((u) => u.id === userId);
     const tenant = tenants.find((t) => t.id === user?.tenantId);
@@ -325,18 +356,10 @@ export function AppStoreProvider({ children }) {
       status,
     };
 
-    setAttendances((prev) => [
-      ...prev.filter((a) => !(a.userId === userId && a.date === todayKey)),
-      rec,
-    ]);
+    setTodayAttendance(rec);
     return rec;
   };
 
-  /**
-   * Menyimpan Presensi Pulang:
-   * 1. Mengirim HTTP POST /api/v1/attendances/check-out ke backend database
-   * 2. Memperbarui checkOut pada record hari ini
-   */
   const checkOut = async (userId, payload = {}) => {
     try {
       await attendanceService.checkOut(payload);
@@ -344,12 +367,10 @@ export function AppStoreProvider({ children }) {
       // Fallback ke state lokal jika server backend belum dijalankan
     }
 
-    setAttendances((prev) =>
-      prev.map((a) =>
-        a.userId === userId && a.date === todayKey
-          ? { ...a, checkOut: now.toISOString() }
-          : a
-      )
+    setTodayAttendance((prev) =>
+      prev && prev.userId === userId
+        ? { ...prev, checkOut: now.toISOString() }
+        : prev
     );
   };
 
@@ -406,7 +427,7 @@ export function AppStoreProvider({ children }) {
 
   const value = {
     now,
-    simulated: clockMode === 'pulang',
+    simulated: clockMode === 'sore_pulang',
     clockMode,
     cycleClockMode,
     tenants,

@@ -139,11 +139,11 @@ function CameraScreen({ onCancel, onShot, sending }) {
         className="absolute inset-0 grid place-items-center pointer-events-none"
         aria-hidden
       >
-        <div className="relative size-[min(74vw,320px)] rounded-full border-4 border-accent shadow-[0_0_0_100vmax_rgba(17,22,17,0.72)]">
+        <div className="relative w-[min(82vw,370px)] h-[min(66vh,470px)] rounded-[50%] border-4 border-accent shadow-[0_0_0_100vmax_rgba(17,22,17,0.72)]">
           <span className="absolute -top-1 left-1/2 -translate-x-1/2 -translate-y-full mb-2 font-mono text-[10px] uppercase tracking-[0.25em] text-accent pb-3">
             Wajah di sini
           </span>
-          <span className="absolute inset-3 rounded-full border-2 border-dashed border-background/40" />
+          <span className="absolute inset-3.5 rounded-[50%] border-2 border-dashed border-background/40" />
         </div>
       </div>
 

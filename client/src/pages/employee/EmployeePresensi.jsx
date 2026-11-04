@@ -68,9 +68,11 @@ export function EmployeePresensi({ session, onNavigate }) {
   const inCheck = canCheckIn(user.id);
   const outCheck = canCheckOut(user.id);
   const openRec = mine.find((a) => !a.checkOut);
+  const needJournalBeforeCheckout =
+    Boolean(openRec) && outCheck.ok && !outCheck.hasTodayJournal;
   const mode = inCheck.ok
     ? 'masuk'
-    : openRec && outCheck.ok
+    : openRec && outCheck.ok && outCheck.hasTodayJournal
       ? 'pulang'
       : null;
   const today = mine.find((a) => a.date === key);
@@ -133,7 +135,11 @@ export function EmployeePresensi({ session, onNavigate }) {
               <Pill tone={today.status === 'tepat' ? 'ok' : 'warn'}>
                 {today.status === 'tepat' ? 'Tepat waktu' : 'Terlambat'}
               </Pill>
-              <span className="text-sm opacity-80">{outCheck.reason}</span>
+              <span className="text-sm opacity-80">
+                {needJournalBeforeCheckout
+                  ? 'Jam kerja selesai. Wajib mengisi jurnal kerja hari ini terlebih dahulu sebelum presensi pulang.'
+                  : outCheck.reason}
+              </span>
             </p>
             <div className="mt-4 flex flex-wrap gap-3">
               <Btn
@@ -141,7 +147,7 @@ export function EmployeePresensi({ session, onNavigate }) {
                 size="sm"
                 onClick={() => onNavigate('jurnal')}
               >
-                <NotebookPen size={16} /> Isi jurnal kerja
+                <NotebookPen size={16} /> Isi jurnal kerja sebelum pulang
               </Btn>
             </div>
           </section>

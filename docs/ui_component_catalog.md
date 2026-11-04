@@ -1,69 +1,56 @@
 # Katalog Komponen UI Autentikasi B2B Multi-Tenant (UI Component Catalog)
 
-Dokumentasi spesifikasi antarmuka dan komponen modular untuk modul autentikasi platform **HadirIn B2B Multi-Tenant** berdasarkan rancangan Figma v2.
+Dokumentasi spesifikasi antarmuka dan komponen modular untuk modul autentikasi platform **HadirIn B2B Multi-Tenant** berdasarkan rancangan Figma terbaru (Top Banner + Centered Workspace Login & Konsol Super Admin).
 
 ---
 
 ## 1. Panduan Palet Warna & Tipografi
 
-* **Primary Accent:** Neon Lime (`#ccff00`)
-* **Contrast / Dark:** Solid Black (`#111111`)
-* **Background Panel Kanan:** Warm Cream / Sand (`#f5f0e8`)
-* **Border & Focus:** Border `#111111`, Focus Ring `rgba(204,255,0,0.25)`
+* **Primary Accent:** Neon Lime (`#c5f82a`)
+* **Contrast / Dark:** Deep Charcoal Black (`#14170f`)
+* **Main Background:** Pure White (`#ffffff`)
+* **Input Surface:** Soft Warm Off-White (`#f8f7f2`)
+* **Input Border:** Muted Olive-Gray (`#6e7365`)
 * **Typography:**
-  * Font Family: `Plus Jakarta Sans`, `Space Grotesk`, sans-serif
-  * Headline: `text-[38px]` s/d `text-[58px]`, font weight 800 (Extrabold)
-  * Form Title: `text-[28px]`, font weight 800 (Extrabold)
-  * Input Label: `text-[11px]`, font weight 700 (Bold), tracking 0.14em uppercase
+  * Primary Heading & Body: `Plus Jakarta Sans`, sans-serif
+  * Form Label & Input Field: `JetBrains Mono`, monospace
 
 ---
 
 ## 2. Spesifikasi Komponen Modular
 
 ### A. `InputText` (`client/src/components/InputText.jsx`)
-Komponen input teks yang mendukung tipe teks umum, email, dan kata sandi dengan pengalih visibilitas (show/hide) serta teks bantuan (*helper text*).
+Komponen input teks bergaya monospasi dengan pengalih visibilitas kata sandi (*show/hide*) serta teks bantuan (*helper text*).
 
 | Prop | Tipe | Default | Deskripsi |
 | :--- | :--- | :--- | :--- |
-| `label` | `string` | `""` | Label huruf kapital kecil di atas kolom input |
+| `label` | `string` | `""` | Label monospasi kapital di atas kolom input |
 | `name` | `string` | Wajib | Atribut nama input |
-| `type` | `string` | `'text'` | Jenis input (`text`, `email`, `password`) |
+| `type` | `string` | `'text'` | Jenis input (`text`, `password`) |
 | `placeholder` | `string` | `""` | Teks petunjuk input |
 | `value` | `string` | Wajib | Nilai isian formulir |
 | `onChange` | `function` | Wajib | Event listener saat input berubah |
-| `helperText` | `string` | `""` | Teks petunjuk abu-abu di bawah kolom input |
+| `helperText` | `string` | `""` | Teks petunjuk di bawah kolom input |
 | `error` | `string` | `""` | Pesan error validasi Zod |
 | `disabled` | `boolean` | `false` | Status interaktivitas |
 
 ---
 
 ### B. `PrimaryButton` (`client/src/components/PrimaryButton.jsx`)
-Tombol aksi utama bernuansa hitam pekat (`#111`) dengan tipografi neon lime (`#ccff00`) dan ikon panah (`→`).
-
-| Prop | Tipe | Default | Deskripsi |
-| :--- | :--- | :--- | :--- |
-| `children` | `node` | Wajib | Label teks tombol |
-| `type` | `string` | `'button'` | Atribut jenis tombol (`submit`, `button`) |
-| `loading` | `boolean` | `false` | Status loading / memproses |
-| `disabled` | `boolean` | `false` | Status nonaktif |
+Tombol aksi utama berwarna `#14170f` dengan teks neon lime `#c5f82a`, ikon panah kanan, dan *offset drop-shadow* `#c5f82a` (`3px 3px 0px`).
 
 ---
 
 ### C. `AuthPage` (`client/src/pages/AuthPage.jsx`)
-Halaman autentikasi B2B Multi-Tenant terpadu:
-* **Panel Kiri (Neon Lime #ccff00):**
-  * Pola garis vertikal halus transparan.
-  * Logo HadirIn + kapsul badge `PLATFORM PRESENSI B2B`.
-  * Tagline: `SATU PLATFORM. BANYAK PERUSAHAAN. DATA TAK PERNAH BERTABRAKAN.`
-  * Headline: *"Hadir di kantor, bukan di **peta palsu.**"*
-  * Tiga fitur mitigasi anti-kecurangan:
-    1. **QR berputar** (`KODE BARU TIAP 15 DETIK`)
-    2. **Foto langsung** (`TANPA UNGGAH GALERI`)
-    3. **Geofence 50 m** (`HAVERSINE + IP KANTOR`)
-* **Panel Kanan (Warm Cream #f5f0e8):**
-  * Judul: *"Masuk ke ruang kerja Anda"*
-  * Deskripsi: *"Akun dibuat oleh Admin Perusahaan Anda. Tidak ada pendaftaran mandiri."*
-  * Input Kode Perusahaan (dengan helper text "Diberikan oleh admin perusahaan, mis. NLG").
-  * Input NIK & Kata Sandi.
-  * Tombol Masuk.
-  * Tautan pengalih portal *"Masuk sebagai Super Admin platform"* dengan formulir khusus Platform Owner.
+Halaman autentikasi dua mode:
+1. **Header Banner Atas (Neon Lime `#c5f82a`):**
+   * Pola garis vertikal halus, logo **HadirIn** di kiri atas, dan headline *"Hadir di kantor, bukan di **peta palsu.**"* dengan badge miring (`-rotate-1`).
+2. **Mode Login Perusahaan (Pekerja & Admin Perusahaan):**
+   * Judul *"Masuk ke ruang kerja Anda"*
+   * Field `KODE PERUSAHAAN`, `NIK` (16 digit), dan `KATA SANDI`.
+   * Tautan pengalih `Masuk sebagai Super Admin platform`.
+3. **Mode Konsol Super Admin:**
+   * Judul *"Konsol Super Admin"*
+   * Deskripsi *"Kelola tenant, lisensi, dan isolasi data tanpa melihat data pribadi karyawan."*
+   * Field `USERNAME` dan `KATA SANDI`.
+   * Tautan pengalih `Kembali ke login perusahaan`.

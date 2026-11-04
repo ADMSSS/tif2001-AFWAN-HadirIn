@@ -1,165 +1,324 @@
-const express = require('express');
-const { Pool } = require('pg');
-const bcrypt = require('bcrypt');
-const cors = require('cors');
-require('dotenv').config();
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import { createClient } from '@supabase/supabase-js';
+
+dotenv.config();
 
 const app = express();
-app.use(express.json());
-app.use(cors());
-
-// Konfigurasi Zona Waktu & Pool Koneksi PostgreSQL (Supabase)
-process.env.TZ = 'Asia/Jakarta';
-const pool = new Pool({
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
-    database: process.env.DB_NAME,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    ssl: { rejectUnauthorized: false }
-});
-
-// Tes koneksi database saat server dinyalakan
-pool.connect((err, client, release) => {
-    if (err) {
-        return console.error('Koneksi ke Supabase gagal:', err.stack);
-    }
-    console.log('Berhasil terhubung ke database Supabase!');
-    release();
-});
-
-// ==========================================
-// 1. ENDPOINT REGISTER
-// ==========================================
-app.post('/api/auth/register', async (req, res) => {
-    try {
-        const { name, email, password } = req.body;
-
-        if (!name || !email || !password) {
-            return res.status(400).json({ error: 'Semua kolom wajib diisi!' });
-        }
-
-        if (password.length < 6) {
-            return res.status(400).json({ error: 'Kata sandi minimal 6 karakter!' });
-        }
-
-        const role = 'karyawan'; // Default role aman, ubah ke 'hrd' via DB
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        const query = `INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, $4) RETURNING id, name, email, role`;
-        const values = [name, email, hashedPassword, role];
-
-        const newNuser = await pool.query(query, values);
-        res.status(201).json({ message: 'Registrasi berhasil!', user: newNuser.rows[0] });
-    } catch (err) {
-        res.status(500).json({ error: 'Registrasi gagal, email mungkin sudah terdaftar.', details: err.message });
-    }
-});
-
-// ==========================================
-// 2. ENDPOINT LOGIN
-// ==========================================
-app.post('/api/auth/login', async (req, res) => {
-    try {
-        const { email, password } = req.body;
-
-        if (!email || !password) {
-            return res.status(400).json({ error: 'Email dan kata sandi wajib diisi!' });
-        }
-
-        const userQuery = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-        if (userQuery.rows.length === 0) {
-            return res.status(401).json({ error: 'Email atau kata sandi salah!' });
-        }
-
-        const user = userQuery.rows[0];
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-
-        if (!isPasswordValid) {
-            return res.status(401).json({ error: 'Email atau kata sandi salah!' });
-        }
-
-        res.status(200).json({
-            message: `Login berhasil sebagai ${user.role}!`,
-            user: {
-                id: user.id,
-                name: user.name,
-                email: user.email,
-                role: user.role
-            }
-        });
-    } catch (err) {
-        res.status(500).json({ error: 'Terjadi kesalahan pada server.', details: err.message });
-    }
-});
-
-// ==========================================
-// 3. ENDPOINT CHECK-IN (Dengan Logika Terlambat Otomatis)
-// ==========================================
-app.post('/api/attendance/check-in', async (req, res) => {
-    try {
-        const { user_id } = req.body;
-        const today = new Date().toISOString().split('T')[0];
-        const currentTime = new Date().toTimeString().split(' ')[0]; // Format HH:MM:SS
-        const jamMasukKantor = '08:00:00';
-
-        // Tentukan status otomatis
-        const status = currentTime > jamMasukKantor ? 'terlambat' : 'hadir';
-
-        const query = `INSERT INTO attendances (user_id, date, check_in_time, status) 
-                       VALUES ($1, $2, $3, $4) RETURNING *`;
-        const values = [user_id, today, currentTime, status];
-
-        const result = await pool.query(query, values);
-        res.status(200).json({ message: `Check-in berhasil! Status: ${status.toUpperCase()}`, data: result.rows[0] });
-    } catch (err) {
-        res.status(400).json({ error: 'Anda sudah melakukan check-in hari ini atau terjadi kesalahan.', details: err.message });
-    }
-});
-
-// ==========================================
-// 4. ENDPOINT CHECK-OUT
-// ==========================================
-app.put('/api/attendance/check-out', async (req, res) => {
-    try {
-        const { user_id } = req.body;
-        const today = new Date().toISOString().split('T')[0];
-        const currentTime = new Date().toTimeString().split(' ')[0];
-
-        const query = `UPDATE attendances SET check_out_time = $1 WHERE user_id = $2 AND date = $3 AND check_out_time IS NULL RETURNING *`;
-        const values = [currentTime, user_id, today];
-
-        const result = await pool.query(query, values);
-
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Belum melakukan check-in hari ini atau sudah check-out sebelumnya.' });
-        }
-
-        res.status(200).json({ message: `Check-out berhasil dicatat pada pukul ${currentTime}`, data: result.rows[0] });
-    } catch (err) {
-        res.status(500).json({ error: 'Gagal melakukan check-out.', details: err.message });
-    }
-});
-
-// ==========================================
-// 5. ENDPOINT REKAPITULASI HRD
-// ==========================================
-app.get('/api/attendance/recap', async (req, res) => {
-    try {
-        const query = `SELECT attendances.*, users.name, users.email 
-                       FROM attendances 
-                       JOIN users ON attendances.user_id = users.id 
-                       ORDER BY attendances.date DESC, attendances.check_in_time DESC`;
-        
-        const result = await pool.query(query);
-        res.status(200).json({ recap: result.rows });
-    } catch (err) {
-        res.status(500).json({ error: 'Gagal mengambil data rekapitulasi.', details: err.message });
-    }
-});
-
-// Jalankan Server
 const PORT = process.env.PORT || 5000;
+
+app.use(cors());
+app.use(express.json());
+
+// Inisialisasi Supabase Client
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('❌ Kredensial Supabase belum diatur di file .env!');
+  process.exit(1);
+}
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// ==========================================
+// FUNGSI UTILITY: Haversine Formula (Geofencing Lapis 3)
+// ==========================================
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+  const R = 6371e3; // Radius bumi dalam meter
+  const φ1 = (lat1 * Math.PI) / 180;
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+
+  const a =
+    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c; // Jarak dalam meter
+};
+
+// ==========================================
+// MIDDLEWARE: Autentikasi JWT
+// ==========================================
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ success: false, message: 'Akses ditolak. Token tidak ditemukan.' });
+  }
+
+  try {
+    const jwtSecret = process.env.JWT_SECRET || 'secret';
+    const decoded = jwt.verify(token, jwtSecret);
+    req.user = decoded; // { id, tenant_id, nik, role }
+    next();
+  } catch (err) {
+    return res.status(403).json({ success: false, message: 'Token tidak valid atau telah kadaluwarsa.' });
+  }
+};
+
+// ==========================================
+// 1. ENDPOINT AUTH: LOGIN (NIK + Tenant Verification)
+// ==========================================
+app.post('/api/v1/auth/login', async (req, res) => {
+  const { nik, password, company_license } = req.body;
+
+  if (!nik || !password) {
+    return res.status(400).json({ success: false, message: 'NIK dan Password wajib diisi.' });
+  }
+
+  try {
+    let query = supabase.from('users').select('*, tenants(company_name, license_key, office_lat, office_long)');
+
+    if (!company_license) {
+      query = query.eq('nik', nik).eq('role', 'SUPER_ADMIN');
+    } else {
+      // Cari user berdasarkan NIK dan pastikan tenant-nya sesuai license key
+      const { data: tenantData, error: tenantErr } = await supabase
+        .from('tenants')
+        .select('id')
+        .eq('license_key', company_license)
+        .single();
+
+      if (tenantErr || !tenantData) {
+        return res.status(404).json({ success: false, message: 'Lisensi perusahaan tidak valid.' });
+      }
+
+      query = query.eq('nik', nik).eq('tenant_id', tenantData.id);
+    }
+
+    const { data: users, error } = await query;
+
+    if (error || !users || users.length === 0) {
+      return res.status(404).json({ success: false, message: 'Kredensial tidak ditemukan.' });
+    }
+
+    const user = users[0];
+
+    // Verifikasi Password
+    const validPassword = await bcrypt.compare(password, user.password_hash);
+    if (!validPassword) {
+      return res.status(401).json({ success: false, message: 'NIK atau Password salah.' });
+    }
+
+    // Buat JWT Token
+    const jwtSecret = process.env.JWT_SECRET || 'secret';
+    const token = jwt.sign(
+      { id: user.id, tenant_id: user.tenant_id, nik: user.nik, role: user.role },
+      jwtSecret,
+      { expiresIn: '1d' }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Login berhasil.',
+      token,
+      user: {
+        id: user.id,
+        tenant_id: user.tenant_id,
+        company_name: user.tenants?.company_name || 'System Owner',
+        nik: user.nik,
+        full_name: user.full_name,
+        role: user.role
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ==========================================
+// 2. ENDPOINT PROVISIONING KARYAWAN (Oleh Admin Perusahaan)
+// ==========================================
+app.post('/api/v1/employees', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'COMPANY_ADMIN' && req.user.role !== 'SUPER_ADMIN') {
+    return res.status(403).json({ success: false, message: 'Akses ditolak. Hanya Admin Perusahaan.' });
+  }
+
+  const { nik, full_name, initial_password } = req.body;
+  const tenant_id = req.user.tenant_id;
+
+  if (!nik || !full_name || !initial_password) {
+    return res.status(400).json({ success: false, message: 'Data karyawan tidak lengkap.' });
+  }
+
+  try {
+    const password_hash = await bcrypt.hash(initial_password, 10);
+
+    const { data, error } = await supabase
+      .from('users')
+      .insert([{ tenant_id, nik, password_hash, role: 'EMPLOYEE', full_name }])
+      .select('id, tenant_id, nik, full_name, role');
+
+    if (error) {
+      if (error.code === '23505') {
+        return res.status(400).json({ success: false, message: 'NIK sudah terdaftar di perusahaan ini.' });
+      }
+      return res.status(400).json({ success: false, message: error.message });
+    }
+
+    res.status(201).json({ success: true, message: 'Akun Karyawan berhasil dibuat.', data: data[0] });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ==========================================
+// 3. [CREATE] - Check-In dengan Validasi Geofencing (Lapis 3)
+// ==========================================
+app.post('/api/attendances/checkin', authenticateToken, async (req, res) => {
+  const { lat, long, photo_url } = req.body;
+  const { id: user_id, tenant_id } = req.user;
+
+  if (lat === undefined || long === undefined) {
+    return res.status(400).json({ success: false, message: 'Koordinat GPS wajib disertakan.' });
+  }
+
+  try {
+    // Ambil titik koordinat pusat kantor dari data tenant
+    const { data: tenant, error: tenantErr } = await supabase
+      .from('tenants')
+      .select('office_lat, office_long')
+      .eq('id', tenant_id)
+      .single();
+
+    if (tenantErr || !tenant) {
+      return res.status(404).json({ success: false, message: 'Data lokasi kantor tenant tidak ditemukan.' });
+    }
+
+    // Hitung jarak menggunakan formula Haversine
+    const distance = calculateDistance(lat, long, tenant.office_lat, tenant.office_long);
+    const MAX_RADIUS_METERS = 50; // Batas radius sah sesuai PRD
+
+    if (distance > MAX_RADIUS_METERS) {
+      return res.status(403).json({
+        success: false,
+        message: `Gagal Check-In: Anda berada di luar radius kantor (${Math.round(distance)} meter dari titik pusat). Maksimal radius adalah 50 meter.`
+      });
+    }
+
+    // Lakukan proses insert data absensi jika berada di dalam radius
+    const { data, error } = await supabase
+      .from('attendances')
+      .insert([
+        {
+          tenant_id,
+          user_id,
+          check_in_time: new Date().toISOString(),
+          lat,
+          long,
+          photo_url
+        }
+      ])
+      .select();
+
+    if (error) return res.status(400).json({ success: false, message: error.message });
+    
+    res.status(201).json({ 
+      success: true, 
+      message: 'Berhasil Check-In di dalam area kantor!', 
+      distance_meters: Math.round(distance),
+      data 
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ==========================================
+// 4. [READ] - Mengambil Data Absensi (Terisolasi Tenant)
+// ==========================================
+app.get('/api/attendances', authenticateToken, async (req, res) => {
+  const { tenant_id, role, id: user_id } = req.user;
+
+  try {
+    let query = supabase.from('attendances').select('*, users(nik, full_name)');
+
+    // Jika bukan Super Admin, data difilter mutlak berdasarkan tenant_id
+    if (role !== 'SUPER_ADMIN') {
+      query = query.eq('tenant_id', tenant_id);
+    }
+
+    // Jika Karyawan, hanya bisa melihat data miliknya sendiri
+    if (role === 'EMPLOYEE') {
+      query = query.eq('user_id', user_id);
+    }
+
+    const { data, error } = await query;
+
+    if (error) return res.status(400).json({ success: false, message: error.message });
+    res.status(200).json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ==========================================
+// 5. [UPDATE] - Check-Out
+// ==========================================
+app.put('/api/attendances/checkout/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const { tenant_id, role, id: user_id } = req.user;
+
+  try {
+    let query = supabase
+      .from('attendances')
+      .update({ check_out_time: new Date().toISOString() })
+      .eq('id', id);
+
+    if (role === 'EMPLOYEE') {
+      query = query.eq('user_id', user_id); // Pastikan karyawan hanya bisa checkout abensinya sendiri
+    } else if (role !== 'SUPER_ADMIN') {
+      query = query.eq('tenant_id', tenant_id);
+    }
+
+    const { data, error } = await query.select();
+
+    if (error) return res.status(400).json({ success: false, message: error.message });
+    if (!data || data.length === 0) {
+      return res.status(404).json({ success: false, message: 'Data absensi tidak ditemukan atau tidak diizinkan.' });
+    }
+
+    res.status(200).json({ success: true, message: 'Berhasil Check-Out!', data });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ==========================================
+// 6. [DELETE] - Menghapus Data Absensi
+// ==========================================
+app.delete('/api/attendances/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const { tenant_id, role } = req.user;
+
+  if (role !== 'SUPER_ADMIN' && role !== 'COMPANY_ADMIN') {
+    return res.status(403).json({ success: false, message: 'Akses ditolak.' });
+  }
+
+  try {
+    let query = supabase.from('attendances').delete().eq('id', id);
+
+    if (role !== 'SUPER_ADMIN') {
+      query = query.eq('tenant_id', tenant_id);
+    }
+
+    const { error } = await query;
+
+    if (error) return res.status(400).json({ success: false, message: error.message });
+    res.status(200).json({ success: true, message: `Data absensi dengan ID ${id} berhasil dihapus` });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Menjalankan Server
 app.listen(PORT, () => {
-    console.log(`Backend REST API HadirIn berjalan di port ${PORT}`);
+  console.log(`🚀 Server HadirIn Multi-Tenant berjalan di http://localhost:${PORT}`);
 });

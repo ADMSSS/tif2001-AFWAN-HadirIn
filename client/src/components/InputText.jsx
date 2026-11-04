@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 
-export const inputCls =
+const inputCls =
   'w-full bg-transparent focus:outline-none font-sans disabled:opacity-60';
 
 /**

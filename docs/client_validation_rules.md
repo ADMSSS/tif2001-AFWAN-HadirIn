@@ -69,6 +69,44 @@ File referensi: `client/src/pages/employee/EmployeeProfil.jsx`
 
 ---
 
-## 6. Kebijakan Registrasi (Registration Policy)
+## 6. Aturan Validasi Wajib Ganti Sandi Login Pertama (`ForcePassword`)
+
+File referensi: `client/src/components/ForcePassword.jsx`
+
+| Field | Tipe Data | Aturan Validasi | Pesan Galat (Error Message) |
+| :--- | :--- | :--- | :--- |
+| `a` (`Sandi Baru`) | String | Wajib, min. 8 karakter, kombinasi huruf & angka, tidak boleh sama dengan sandi sementara awal | - "Sandi baru minimal 8 karakter."<br>- "Gunakan kombinasi huruf dan angka."<br>- "Sandi baru tidak boleh sama dengan sandi awal." |
+| `b` (`Ulangi Sandi Baru`) | String | Wajib sama persis dengan `a` | "Konfirmasi sandi tidak cocok." |
+
+---
+
+## 7. Aturan Validasi Modul Admin Perusahaan (`AdminKaryawan`, `AdminJurnal`, `AdminTalenta`, `AdminPengaturan`)
+
+File referensi: `client/src/pages/admin/`
+
+| Modul / Formulir | Parameter | Aturan Validasi | Pesan Galat (Error Message) |
+| :--- | :--- | :--- | :--- |
+| **Tambah Karyawan (`AdminKaryawan`)** | `nik`, `fullName`, `position`, kuota lisensi | NIK tepat 16 digit angka, unik di dalam tenant yang sama, nama min. 3 karakter, jumlah pengguna aktif `< tenant.maxUsers` | - "NIK harus terdiri dari tepat 16 digit angka."<br>- "NIK tersebut sudah terdaftar di perusahaan ini."<br>- "Kuota lisensi perusahaan sudah penuh." |
+| **Evaluasi Jurnal (`AdminJurnal`)** | `decision`, `note` | Jika keputusan `ditolak`, catatan evaluasi wajib diisi minimal 5 karakter | "Alasan penolakan wajib diisi (minimal 5 karakter)." |
+| **Pencarian Talenta (`AdminTalenta`)** | `nik` | Wajib tepat 16 digit angka | "NIK harus 16 digit angka." |
+| **Pengaturan Kantor (`AdminPengaturan`)** | `lat`, `lng`, `radius`, `graceMin` | `lat` dalam rentang `-90..90`, `lng` dalam rentang `-180..180`, `radius` `20..200` meter, `graceMin` `0..60` menit | - "Koordinat tidak valid (lat -90..90, lng -180..180)."<br>- "Toleransi terlambat harus 0–60 menit." |
+
+---
+
+## 8. Aturan Validasi Provisioning Tenant Baru (`SuperTenant`)
+
+File referensi: `client/src/pages/super/SuperTenant.jsx`, `client/src/store/appStore.jsx`
+
+| Field | Tipe Data | Aturan Validasi | Pesan Galat (Error Message) |
+| :--- | :--- | :--- | :--- |
+| `name` (`Nama Perusahaan`) | String | Wajib diisi | "Nama perusahaan wajib diisi." |
+| `code` (`Kode Perusahaan`) | String | Wajib, 2–8 karakter alfanumerik kapital, unik lintas seluruh tenant | - "Kode perusahaan harus 2–8 karakter huruf/angka."<br>- "Kode perusahaan sudah digunakan oleh tenant lain." |
+| `maxUsers` (`Maksimal Pengguna`) | Number | Bilangan bulat $\ge 1$ | "Maksimal pengguna harus bilangan bulat minimal 1." |
+| `activeUntil` (`Aktif Sampai`) | Date String | Wajib setelah tanggal hari ini (`> today`) | "Tanggal aktif sampai harus setelah hari ini." |
+| `adminNik` (`NIK Admin Pertama`) | String | Wajib tepat 16 digit angka | "NIK admin pertama harus 16 digit angka." |
+
+---
+
+## 9. Kebijakan Registrasi (Registration Policy)
 Sesuai PRD v1.0 Multi-Tenant B2B:
-* **Admin-Provisioned (No Self-Registration):** Pendaftaran mandiri publik dihilangkan sepenuhnya. Akun pekerja didaftarkan secara terpusat oleh Admin Perusahaan masing-masing.
+* **Admin-Provisioned (No Self-Registration):** Pendaftaran mandiri publik dihilangkan sepenuhnya. Akun perusahaan dibuat oleh Super Admin Platform, dan akun pekerja didaftarkan secara terpusat oleh Admin Perusahaan masing-masing.

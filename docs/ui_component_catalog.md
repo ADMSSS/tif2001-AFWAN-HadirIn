@@ -87,3 +87,68 @@ Modul identitas pekerja, rekam jejak lintas perusahaan, keamanan akun, dan kepat
 * **Rekam Jejak Karier Lintas Perusahaan (NIK Sama):** Menampilkan riwayat penempatan perusahaan beserta lencana `AKTIF` / `SELESAI` dan bilah progres persentase kehadiran (`Meter`).
 * **Keamanan (`Ganti sandi`):** Formulir pembaruan kata sandi (`Sandi lama`, `Sandi baru` min. 8 karakter kombinasi huruf & angka, dan `Ulangi sandi baru`).
 * **Riwayat Keputusan Persetujuan Akses (`UU PDP`):** Menampilkan daftar permintaan akses ringkasan kehadiran dari perusahaan lain dengan tombol `Setujui` / `Tolak` atau tampilan `Belum ada permintaan`.
+
+### F. `ForcePassword` (`client/src/components/ForcePassword.jsx`)
+Modal wajib ganti kata sandi pada login pertama (`mustChangePassword === true`) atau setelah reset sandi oleh Admin Perusahaan:
+* Menutup layar belakang dengan efek *backdrop blur* (`fixed inset-0 z-50 bg-foreground/80 backdrop-blur-sm`) dan kartu berbayang neon (`shadow-[8px_8px_0_0_#c9f23c]`).
+* Memvalidasi kata sandi baru minimal 8 karakter kombinasi huruf dan angka serta tidak boleh sama dengan kata sandi awal.
+
+---
+
+## 4. Spesifikasi Halaman Modul Admin Perusahaan / HRD (`client/src/pages/admin/`)
+
+### A. `AdminDashboard` (`client/src/pages/admin/AdminDashboard.jsx`)
+Dasbor analitik operasional HRD:
+* **4 Kartu KPI Harian:** `% Hadir hari ini`, `Tepat waktu`, `Terlambat`, dan `Jurnal menunggu` (navigasi cepat ke menu Jurnal).
+* **Grafik Tren Kehadiran 14 Hari Kerja:** Grafik batang bertumpuk (*stacked bar*: tepat waktu, terlambat, tidak hadir) + garis putus-putus persentase kehadiran dengan *hover tooltip*.
+* **Peringkat Performa 30 Hari:** Peringkat karyawan dengan pengalih urutan `Kehadiran` / `Ketepatan`, ikon trofi, dan bilah progres.
+* **Panel Perlu Perhatian & Lisensi:** Daftar jurnal menunggu verifikasi, peringatan keterlambatan/kehadiran rendah, serta ringkasan lisensi perusahaan.
+
+### B. `AdminKaryawan` (`client/src/pages/admin/AdminKaryawan.jsx`)
+Manajemen akun dan direktori karyawan:
+* **Bar Kuota Lisensi:** Indikator kursi aktif terpakai terhadap batas `maxUsers` perusahaan.
+* **Pencarian & Filter Status:** Pencarian nama/NIK/jabatan serta filter `Semua`, `Aktif`, `Wajib ganti sandi`, dan `Nonaktif`.
+* **Form Tambah Karyawan & Kartu Kredensial Awal:** Pendaftaran karyawan baru dengan pembuatan kata sandi sementara otomatis (`Hdr-XXXXX`) yang dapat disalin.
+* **Slide-Over Detail & Tindakan Akun:** Panel geser riwayat 30 hari & 10 presensi terakhir, modal konfirmasi `Reset sandi`, serta `Nonaktifkan` / `Aktifkan`.
+
+### C. `AdminRekap` (`client/src/pages/admin/AdminRekap.jsx`)
+Rekapitulasi kehadiran dan jejak audit (*audit trail*):
+* **Tab Presensi:** Filter rentang tanggal (`Dari` – `Sampai`), filter karyawan, filter status, tombol `Ekspor XLSX` (unduh CSV) & `Ekspor PDF` (dokumen cetak resmi), serta modal peninjau bukti foto swafoto (`PhotoModal`).
+* **Tab Audit Trail:** Tabel log aktivitas sensitif bersifat *append-only* (`at`, `actor`, `action`, `detail`).
+
+### D. `AdminJurnal` (`client/src/pages/admin/AdminJurnal.jsx`)
+Verifikasi dan evaluasi jurnal kerja harian karyawan:
+* **Filter Status & Karyawan:** Tab `Menunggu`, `Disetujui`, `Ditolak`, dan `Semua` dengan lencana jumlah jurnal serta *dropdown* karyawan.
+* **Persetujuan Massal (`Bulk Approve`):** Tombol `Setujui semua yang tampil (N)` dengan dialog konfirmasi.
+* **Form Evaluasi Kartu Jurnal:** Tombol `Setujui` dan `Tolak` dengan input catatan evaluasi HRD (wajib minimal 5 karakter saat menolak jurnal).
+
+### E. `AdminLayarQR` (`client/src/pages/admin/AdminLayarQR.jsx`)
+Layar kiosk QR dinamis kantor untuk pencegahan titip absen:
+* **QR Code & Kode 6 Digit Berputar (15 Detik):** Matriks SVG QR deterministik berbasis `qrSecret` tenant dan jendela waktu 15 detik, dilengkapi cincin progres hitung mundur dan mode `Layar penuh` (*Fullscreen API*).
+* **Panel Kehadiran Hari Ini & Panduan 3 Lapis Keamanan:** Menampilkan jumlah karyawan hadir hari ini serta penjelasan mekanisme *rolling token*.
+
+### F. `AdminTalenta` (`client/src/pages/admin/AdminTalenta.jsx`)
+Pencarian rekam jejak kandidat lintas perusahaan sesuai UU PDP:
+* **Stepper 3 Langkah:** `1. Cari NIK` -> `2. Izin karyawan` -> `3. Lihat performa`.
+* **Identitas Tersamar & Opt-In Consent:** Menampilkan nama tersamar (`B••• S••••••`) sebelum kandidat menyetujui permintaan akses, dan membuka *timeline* kehadiran lintas perusahaan setelah berstatus `APPROVED`.
+
+### G. `AdminPengaturan` (`client/src/pages/admin/AdminPengaturan.jsx`)
+Pengaturan titik kantor, geofence, jaringan, dan jam kerja:
+* **Lokasi & Visualisasi Radius Geofence (`RadiusViz`):** Input alamat, koordinat *latitude/longitude*, tombol geolokasi browser `Gunakan lokasi saya saat ini`, dan *slider* radius `20 m`–`200 m` dengan diagram skala interaktif.
+* **Jaringan & Jam Kerja:** Pengaturan awalan IP Wi-Fi kantor (`ipPrefix`), jam masuk (`workStart`), jam pulang (`workEnd`), dan toleransi keterlambatan (`graceMin`).
+
+---
+
+## 5. Spesifikasi Halaman Modul Super Admin Platform (`client/src/pages/super/`)
+
+### A. `SuperDashboard` (`client/src/pages/super/SuperDashboard.jsx`)
+Konsol pemantauan tingkat platform (tanpa mengekspos data pribadi karyawan):
+* **5 Kartu KPI Platform:** `Tenant aktif`, `Lisensi kedaluwarsa`, `Ditangguhkan`, `Pengguna / kuota`, dan `Presensi hari ini` (agregat lintas tenant).
+* **Panel Perpanjangan Lisensi & Grafik Kapasitas:** Daftar tenant yang lisensinya kedaluwarsa atau berakhir $\le 60$ hari dengan tombol cepat `+12 bulan`, serta grafik batang bertumpuk horizontal penggunaan kuota per kode perusahaan.
+* **Monitor Isolasi Basis Data & Audit Integritas:** Tabel jumlah baris per `tenant_id`, 4 indikator pemeriksaan integritas isolasi multi-tenant secara *real-time*, kartu SQL *Middleware tenant*, dan tabel referensi skema PRD.
+
+### B. `SuperTenant` (`client/src/pages/super/SuperTenant.jsx`)
+Manajemen *tenant* B2B dan siklus hidup lisensi:
+* **Form Provisioning Tenant Baru:** Pendaftaran perusahaan klien baru beserta akun Admin pertama dan pembuatan kunci lisensi unik (`HDR-XXXX-XXXX-XXXX`).
+* **Kartu Serah Terima (`HandoffCard`):** Menampilkan kode perusahaan, kunci lisensi, NIK admin, dan kata sandi awal sementara dengan tombol salin cepat.
+* **Kartu Tenant (`TenantCard`):** Menampilkan detail lisensi, pemilih durasi perpanjangan (`3`, `6`, `12` bulan), serta tombol `Tangguhkan` / `Aktifkan` akses tenant.

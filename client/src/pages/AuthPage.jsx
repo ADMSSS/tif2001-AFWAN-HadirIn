@@ -135,8 +135,9 @@ const AuthPage = ({ onAuth }) => {
       // Jika server backend lokal belum menyala, sesuaikan akun berdasarkan NIK yang diinput
       if (!apiError?.response && onAuth) {
         onAuth({
-          role: superMode ? 'super' : 'karyawan',
+          role: superMode ? 'super' : undefined,
           nik: superMode ? undefined : parsed.data.nik,
+          password: parsed.data.password,
           username: superMode ? parsed.data.username : undefined,
           companyCode: superMode ? undefined : parsed.data.companyCode,
         });

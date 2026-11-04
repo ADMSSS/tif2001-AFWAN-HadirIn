@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useMemo } from 'react';
 
 const ID_MONTHS_LONG = [
   'Januari',
@@ -60,8 +60,23 @@ export function dateKey(d) {
   return `${y}-${m}-${day}`;
 }
 
+export function addDaysDate(d, amount) {
+  const dt = new Date(d instanceof Date ? d.getTime() : parseDateISO(d).getTime());
+  dt.setDate(dt.getDate() + amount);
+  return dt;
+}
+
+export function diffCalendarDays(later, earlier) {
+  const a = parseDateISO(later);
+  const b = parseDateISO(earlier);
+  const utcA = Date.UTC(a.getFullYear(), a.getMonth(), a.getDate());
+  const utcB = Date.UTC(b.getFullYear(), b.getMonth(), b.getDate());
+  return Math.round((utcA - utcB) / 86400000);
+}
+
 export function isWeekendDate(d) {
-  const day = d.getDay();
+  const dt = d instanceof Date ? d : parseDateISO(d);
+  const day = dt.getDay();
   return day === 0 || day === 6;
 }
 
@@ -87,6 +102,12 @@ export function fmtDate(key, pattern = 'd MMM yyyy') {
   if (pattern === 'EEE d MMM') {
     return `${ID_DAYS_SHORT[dayIdx]} ${dayNum} ${ID_MONTHS_SHORT[monthIdx]}`;
   }
+  if (pattern === 'EEE d MMM yyyy') {
+    return `${ID_DAYS_SHORT[dayIdx]} ${dayNum} ${ID_MONTHS_SHORT[monthIdx]} ${year}`;
+  }
+  if (pattern === 'EEE d MMM yy') {
+    return `${ID_DAYS_SHORT[dayIdx]} ${dayNum} ${ID_MONTHS_SHORT[monthIdx]} ${String(year).slice(-2)}`;
+  }
   if (pattern === 'd MMMM yyyy') {
     return `${dayNum} ${ID_MONTHS_LONG[monthIdx]} ${year}`;
   }
@@ -103,6 +124,21 @@ export function fmtDate(key, pattern = 'd MMM yyyy') {
     const hh = String(d.getHours()).padStart(2, '0');
     const mm = String(d.getMinutes()).padStart(2, '0');
     return `${dayNum} ${ID_MONTHS_LONG[monthIdx]} ${year}, ${hh}:${mm}`;
+  }
+  if (pattern === 'dd/MM/yyyy HH:mm') {
+    const dd = String(dayNum).padStart(2, '0');
+    const mo = String(monthIdx + 1).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    return `${dd}/${mo}/${year} ${hh}:${mm}`;
+  }
+  if (pattern === 'dd/MM/yyyy HH:mm:ss') {
+    const dd = String(dayNum).padStart(2, '0');
+    const mo = String(monthIdx + 1).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    const ss = String(d.getSeconds()).padStart(2, '0');
+    return `${dd}/${mo}/${year} ${hh}:${mm}:${ss}`;
   }
   if (pattern === 'd MMM') {
     return `${dayNum} ${ID_MONTHS_SHORT[monthIdx]}`;
@@ -188,6 +224,35 @@ export function summarize(atts, journals, from, to) {
   };
 }
 
+// ─── Rolling QR Code Helpers (1:1 dengan figma desain/src/app/lib/rolling.ts) ───
+export const QR_WINDOW_SEC = 15;
+
+function mixHash(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i += 1) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  h ^= h >>> 15;
+  h = Math.imul(h, 2246822507);
+  h ^= h >>> 13;
+  return h >>> 0;
+}
+
+export const windowIndex = (ms) => Math.floor(ms / (QR_WINDOW_SEC * 1000));
+
+export function rollingCode(secret, win) {
+  return String(mixHash(`${secret}:${win}`) % 1000000).padStart(6, '0');
+}
+
+export function secondsLeft(ms) {
+  return QR_WINDOW_SEC - Math.floor((ms % (QR_WINDOW_SEC * 1000)) / 1000);
+}
+
+export function qrPayload(tenantCode, code) {
+  return `hadirin:${tenantCode}:${code}`;
+}
+
 export const StoreContext = createContext(null);
 
 export function useStore() {
@@ -201,4 +266,18 @@ export function useStore() {
 export function useClock() {
   const { now, simulated, clockMode, cycleClockMode } = useStore();
   return { now, simulated, clockMode, cycleClockMode };
+}
+
+export function useScoped(tenantId) {
+  const { tenants, users, attendances, journals, audit } = useStore();
+  return useMemo(() => {
+    const tenant = tenants.find((t) => t.id === tenantId) || tenants[0];
+    return {
+      tenant,
+      users: users.filter((u) => u.tenantId === tenant.id),
+      attendances: attendances.filter((a) => a.tenantId === tenant.id),
+      journals: journals.filter((j) => j.tenantId === tenant.id),
+      audit: (audit || []).filter((e) => e.tenantId === tenant.id),
+    };
+  }, [tenantId, tenants, users, attendances, journals, audit]);
 }

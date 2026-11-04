@@ -1,6 +1,6 @@
-# Katalog Komponen UI Autentikasi B2B Multi-Tenant (UI Component Catalog)
+# Katalog Komponen UI HadirIn B2B Multi-Tenant (UI Component Catalog)
 
-Dokumentasi spesifikasi antarmuka dan komponen modular untuk modul autentikasi platform **HadirIn B2B Multi-Tenant** berdasarkan rancangan Figma Make (`figma desain/`) 1:1 (Top Banner + Centered Workspace Login & Konsol Super Admin, tanpa kotak/panel demo).
+Dokumentasi spesifikasi antarmuka dan komponen modular untuk platform **HadirIn B2B Multi-Tenant** (Modul Autentikasi & Modul Karyawan: Dasbor, Presensi Geofence/Kamera, Jurnal Kerja Harian, dan Profil UU PDP) berdasarkan rancangan Figma Make (`figma desain/`) 1:1 tanpa kotak/panel demo.
 
 ---
 
@@ -19,43 +19,71 @@ Dokumentasi spesifikasi antarmuka dan komponen modular untuk modul autentikasi p
 
 ---
 
-## 2. Spesifikasi Komponen Modular
+## 2. Komponen Primitif & Layout (`client/src/components/`)
 
-### A. `InputText` (`client/src/components/InputText.jsx`)
-Komponen input formulir 1:1 dengan komponen `Field` pada Figma (`border-2 border-foreground rounded-md bg-card focus-within:shadow-[4px_4px_0_0_#c9f23c] focus-within:-translate-y-px transition-all`), mendukung pengalih visibilitas kata sandi (*show/hide*) serta teks bantuan (*hint/helperText*).
+### A. `ui.jsx` (`client/src/components/ui.jsx`)
+Pustaka komponen UI dasar bergaya *Neo-Brutalist Swiss Grid*:
+* **`Wordmark`**: Logo identitas `Hadir` + kotak `In` (`bg-foreground text-accent` atau terbalik pada latar gelap).
+* **`PageHead`**: Header halaman dengan *eyebrow* monospasi, judul utama `font-display font-extrabold`, subjudul, dan slot aksi kanan.
+* **`Panel`**: Kartu kontainer berbingkai `border-2 border-foreground rounded-md` dengan varian `card`, `paper`, `dark`, `accent`, dan `muted`.
+* **`Stat`**: Kartu metrik KPI dengan label monospasi, angka besar `font-display`, subteks, dan varian warna (`default`, `accent`, `dark`, `danger`).
+* **`Pill`**: Lencana status monospasi (`default`, `accent`, `dark`, `danger`, `warn`, `success`, `outline`).
+* **`Btn`**: Tombol aksi dengan bayangan keras (`shadow-[3px_3px_0_0_#111611]`) dan varian `primary`, `accent`, `secondary`, `ghost`, serta `danger`.
+* **`Field`**: Pembungkus input dengan label monospasi kapital, teks bantuan (`hint`), dan pesan galat (`error`).
+* **`Avatar`**: Inisial nama pengguna dalam lingkaran berbingkai `border-2 border-foreground`.
+* **`Empty`**: Tampilan status kosong (*empty state*) dengan bingkai putus-putus (`border-dashed`).
+* **`Meter`**: Indikator bilah progres persentase kehadiran (`0%`–`100%`).
 
-| Prop | Tipe | Default | Deskripsi |
-| :--- | :--- | :--- | :--- |
-| `label` | `string` | `""` | Label monospasi kapital (`font-mono text-xs uppercase tracking-wider`) |
-| `name` | `string` | Wajib | Atribut nama input |
-| `type` | `string` | `'text'` | Jenis input (`text`, `password`) |
-| `placeholder` | `string` | `""` | Teks petunjuk input |
-| `value` | `string` | Wajib | Nilai isian formulir |
-| `onChange` | `function` | Wajib | Event listener saat input berubah |
-| `helperText` / `hint` | `string` | `""` | Teks petunjuk di bawah kolom input |
-| `error` | `string` | `""` | Pesan error validasi Zod |
-| `mono` | `boolean` | `false` | Mengaktifkan `font-mono` pada teks input |
-| `disabled` | `boolean` | `false` | Status interaktivitas |
+### B. `InputText` (`client/src/components/InputText.jsx`) & `PrimaryButton` (`client/src/components/PrimaryButton.jsx`)
+Komponen input dan tombol utama pada halaman autentikasi yang proporsional dalam satu *viewport* desktop (`100vh`) tanpa *scrolling*.
+
+### C. `Shell` (`client/src/components/Shell.jsx`)
+Kerangka navigasi utama aplikasi:
+* **Sidebar Kiri (Desktop) & Bottom Bar (Mobile):** Menampilkan `Wordmark`, kartu identitas Tenant (`TENANT · NLG — PT Nusantara Logistik`), menu navigasi (`Dasbor`, `Presensi`, `Jurnal`, `Profil`), serta profil pengguna aktif dan tombol `Keluar`.
+* **Top Bar:** Menampilkan tanggal aktif dalam Bahasa Indonesia, jam kerja perusahaan (`08:00 – 17:00`), dan jam digital *real-time* (`HH:MM:SS`).
 
 ---
 
-### B. `PrimaryButton` (`client/src/components/PrimaryButton.jsx`)
-Tombol aksi utama 1:1 dengan desain Figma (`bg-foreground text-accent font-display font-bold text-lg lg:text-2xl px-5 lg:px-8 py-4 lg:py-6 rounded-md shadow-[4px_4px_0_0_#c9f23c] border-2 border-foreground hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0_0_#c9f23c]`).
+## 3. Spesifikasi Halaman Modul Autentikasi & Karyawan (`client/src/pages/`)
 
----
-
-### C. `AuthPage` (`client/src/pages/AuthPage.jsx`)
-Halaman autentikasi dua mode dengan struktur 1:1 sesuai `AuthPage.tsx`:
-1. **Header Banner Atas (`bg-accent text-foreground h-[21vh] min-h-[170px]`):**
-   * Komponen `Wordmark` (`Hadir` + kotak `In` dengan `font-display font-extrabold tracking-tight text-4xl`) di pojok kiri atas (`absolute top-6 left-10`).
-   * Headline terpusat (`font-display font-extrabold text-5xl leading-[1.1] tracking-tight`) *"Hadir di kantor, bukan di **peta palsu.**"* dengan badge miring (`inline-block bg-foreground text-accent px-3 py-0.5 rounded-sm -rotate-1`).
+### A. `AuthPage` (`client/src/pages/AuthPage.jsx`)
+Halaman autentikasi dua mode dengan struktur 1:1 sesuai Figma:
+1. **Header Banner Atas (`bg-accent text-foreground`):**
+   * `Wordmark` di pojok kiri atas (`lg:top-5 lg:left-8`) dan headline dua baris *"Hadir di kantor, / bukan di **peta palsu.**"* (`lg:mt-4` di desktop agar proporsional dengan logo).
 2. **Mode Login Perusahaan (Karyawan & Admin Perusahaan):**
-   * Kontainer `w-full lg:w-[80%] max-w-[1400px] mx-auto` dengan `lg:min-h-[79svh]`.
-   * Judul *"Masuk ke ruang kerja Anda"* (`text-3xl lg:text-5xl font-extrabold`).
-   * Field `Kode perusahaan`, `NIK` (16 digit), dan `Kata sandi`.
-   * Tautan pengalih `Masuk sebagai Super Admin platform`.
+   * Seluruh input (`Kode perusahaan`, `NIK` 16 digit, `Kata sandi`) dan tombol `Masuk` muat penuh dalam 1 layar desktop tanpa *scrolling*.
+   * Tautan pengalih `Masuk sebagai Super Admin platform` berada di bagian bawah halaman.
 3. **Mode Konsol Super Admin:**
-   * Judul *"Konsol Super Admin"*
-   * Deskripsi *"Kelola tenant, lisensi, dan isolasi data tanpa melihat data pribadi karyawan."*
-   * Field `Username` dan `Kata sandi`.
-   * Tautan pengalih `Kembali ke login perusahaan`.
+   * Form login khusus pengelola platform (`Username` dan `Kata sandi`) dengan tautan kembali ke login perusahaan.
+
+### B. `EmployeeDashboard` (`client/src/pages/employee/EmployeeDashboard.jsx`)
+Dasbor utama karyawan yang adaptif terhadap waktu dan status kerja:
+* **Sapaan Dinamis:** Membaca waktu dan nama depan pengguna yang sedang login (`Selamat pagi/siang/sore/malam, [Nama User]`).
+* **Banner Peringatan Jurnal Wajib (Sore Hari):** Menampilkan banner hijau limau (`Jurnal hari ini belum diisi — Isi jurnal ->`) apabila karyawan sudah presensi masuk namun belum mengisi jurnal kerja harian.
+* **Kartu Status Hari Ini:**
+  * Pagi (belum check-in): `Anda belum presensi` + tombol `Mulai presensi masuk`.
+  * Siang/Sore (sudah check-in, `< 17:00`): `Bekerja sejak 08:01`, durasi kerja berjalan, dan lencana `TEPAT WAKTU` / `TERLAMBAT`.
+  * Waktu Pulang (`>= 17:00`): `Waktunya presensi pulang` — tombol `Mulai presensi pulang` terkunci otomatis jika jurnal hari ini belum dikirim.
+* **Statistik Bulan Berjalan & Kalender 30 Hari Terakhir:** Menampilkan `% Kehadiran`, `% Tepat Waktu`, `Total Jam`, `Jurnal Disetujui`, serta matriks kalender 30 hari terakhir dan panel informasi perusahaan (`Tempat kerja` & `Bergabung`).
+
+### C. `EmployeePresensi` & `PresensiFlow` (`client/src/pages/employee/EmployeePresensi.jsx`, `client/src/pages/employee/PresensiFlow.jsx`)
+Modul verifikasi kehadiran dua langkah (*Anti-Spoofing Geofence & WebRTC Camera*) beserta bukti struk digital:
+* **Langkah 1 — Verifikasi Lokasi (Radar Geofence):**
+  * Menghitung jarak koordinat GPS pengguna ke titik kantor menggunakan rumus *Haversine* (`client/src/utils/geo.js`).
+  * **Status `Di Dalam Radius Kantor` (mis. `11 m` dari batas `50 m`):** Header kartu berwarna hijau limau (`bg-accent`), titik pengguna berada di dalam lingkaran kantor, dan tombol `Mulai Absen Masuk/Pulang` aktif.
+  * **Status `Diluar Radius` (mis. `477 m` dari batas `50 m`):** Header kartu berwarna merah (`bg-destructive text-white`), titik oranye `ANDA` berada di luar lingkaran kantor dengan garis putus-putus, kotak peringatan detail jarak, dan tombol presensi dinonaktifkan.
+* **Langkah 2 — Verifikasi Wajah (WebRTC Camera Modal):**
+  * Mengakses kamera depan (`navigator.mediaDevices.getUserMedia`) dengan panduan bingkai wajah berbentuk **oval vertikal besar** (`w-64 h-80 sm:w-72 sm:h-96 rounded-[50%]`) bertuliskan `WAJAH DI SINI` serta perekaman cap waktu, koordinat GPS, dan nama perusahaan pada hasil tangkapan kanvas.
+* **Bukti Presensi (`ReceiptModal`) & Arsip Riwayat:** Menampilkan struk bukti kehadiran lengkap (foto swafoto, waktu masuk/pulang, selisih menit, koordinat GPS, jarak meter) dan tabel arsip riwayat presensi.
+
+### D. `EmployeeJurnal` (`client/src/pages/employee/EmployeeJurnal.jsx`)
+Modul pencatatan dan pemantauan jurnal kerja harian:
+* **Formulir Jurnal Baru / Revisi (Kolom Kiri):** Input `Judul Tugas`, `Uraian Capaian`, `Estimasi Waktu (menit)`, dan pemilih `Status Penyelesaian` (`Selesai` | `Berjalan` | `Tertunda`). Terkunci jika karyawan belum melakukan presensi masuk hari ini.
+* **Daftar & Filter Jurnal (Kolom Kanan):** Tab filter status (`Semua`, `Menunggu`, `Disetujui`, `Ditolak`), pengelompokan berdasarkan tanggal kerja beserta total durasi harian, lencana `Terkunci` untuk jurnal yang telah disetujui, serta kotak `CATATAN ADMIN` dan tombol `Revisi & kirim ulang` jika jurnal ditolak.
+
+### E. `EmployeeProfil` (`client/src/pages/employee/EmployeeProfil.jsx`)
+Modul identitas pekerja, rekam jejak lintas perusahaan, keamanan akun, dan kepatuhan UU PDP:
+* **Kartu Identitas Pekerja:** Menampilkan `Avatar`, nama lengkap, jabatan, nama & kode perusahaan, tanggal bergabung, serta **NIK 16 digit tersembunyi** (`3173••••••••0002`) dengan tombol ikon mata untuk menampilkan/menyembunyikan NIK penuh.
+* **Rekam Jejak Karier Lintas Perusahaan (NIK Sama):** Menampilkan riwayat penempatan perusahaan beserta lencana `AKTIF` / `SELESAI` dan bilah progres persentase kehadiran (`Meter`).
+* **Keamanan (`Ganti sandi`):** Formulir pembaruan kata sandi (`Sandi lama`, `Sandi baru` min. 8 karakter kombinasi huruf & angka, dan `Ulangi sandi baru`).
+* **Riwayat Keputusan Persetujuan Akses (`UU PDP`):** Menampilkan daftar permintaan akses ringkasan kehadiran dari perusahaan lain dengan tombol `Setujui` / `Tolak` atau tampilan `Belum ada permintaan`.

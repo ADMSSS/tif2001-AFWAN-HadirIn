@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import AuthPage from './pages/AuthPage';
 import Shell from './components/Shell';
 import EmployeeDashboard from './pages/employee/EmployeeDashboard';
+import EmployeePresensi from './pages/employee/EmployeePresensi';
 import { AppStoreProvider } from './store/appStore';
 import { useStore, inputCls } from './utils/formatters';
 import { Btn, Field, PageHead, Panel } from './components/ui';
@@ -20,7 +21,7 @@ function QuickJournalPage({ session, onNavigate }) {
     (j) => j.userId === session.userId && j.attendanceId === todayAtt?.id
   );
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setErr('');
     setMsg('');
@@ -28,7 +29,7 @@ function QuickJournalPage({ session, onNavigate }) {
       setErr('Anda belum melakukan presensi masuk hari ini.');
       return;
     }
-    const res = addJournal(session.userId, todayAtt.id, {
+    const res = await addJournal(session.userId, todayAtt.id, {
       title,
       description,
       minutes: Number(minutes) || 60,
@@ -177,11 +178,7 @@ export default function App() {
           <QuickJournalPage session={session} onNavigate={setPage} />
         )}
         {page === 'presensi' && (
-          <PlaceholderPage
-            title="Presensi"
-            kicker="Verifikasi Kehadiran"
-            onNavigate={setPage}
-          />
+          <EmployeePresensi session={session} onNavigate={setPage} />
         )}
         {page === 'profil' && (
           <PlaceholderPage

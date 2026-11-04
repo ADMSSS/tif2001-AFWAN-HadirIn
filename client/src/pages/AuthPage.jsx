@@ -115,7 +115,15 @@ const AuthPage = ({ onAuth }) => {
         localStorage.setItem('hadirin_token', token);
       }
       if (onAuth) {
-        onAuth(response);
+        const apiUser = response?.data?.user || response?.data || {};
+        onAuth({
+          userId: apiUser.id,
+          role: apiUser.role || (superMode ? 'super' : 'karyawan'),
+          name: apiUser.full_name || apiUser.fullName || apiUser.name,
+          nik: apiUser.nik || (superMode ? undefined : parsed.data.nik),
+          position: apiUser.position,
+          companyCode: superMode ? undefined : parsed.data.companyCode,
+        });
       }
 
       setSuccessMessage(
@@ -124,11 +132,12 @@ const AuthPage = ({ onAuth }) => {
           : `Autentikasi ruang kerja (${parsed.data.companyCode}) berhasil.`
       );
     } catch (apiError) {
-      // Jika server backend lokal belum menyala, izinkan masuk ke sesi ruang kerja untuk pengujian UI
+      // Jika server backend lokal belum menyala, sesuaikan akun berdasarkan NIK yang diinput
       if (!apiError?.response && onAuth) {
         onAuth({
           role: superMode ? 'super' : 'karyawan',
-          name: superMode ? 'Super Admin' : 'Dewi Lestari',
+          nik: superMode ? undefined : parsed.data.nik,
+          username: superMode ? parsed.data.username : undefined,
           companyCode: superMode ? undefined : parsed.data.companyCode,
         });
         return;

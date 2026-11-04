@@ -96,6 +96,14 @@ export function fmtDate(key, pattern = 'd MMM yyyy') {
   if (pattern === 'MMMM yyyy') {
     return `${ID_MONTHS_LONG[monthIdx]} ${year}`;
   }
+  if (pattern === 'MMM yyyy') {
+    return `${ID_MONTHS_SHORT[monthIdx]} ${year}`;
+  }
+  if (pattern === 'd MMMM yyyy, HH:mm') {
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    return `${dayNum} ${ID_MONTHS_LONG[monthIdx]} ${year}, ${hh}:${mm}`;
+  }
   if (pattern === 'd MMM') {
     return `${dayNum} ${ID_MONTHS_SHORT[monthIdx]}`;
   }

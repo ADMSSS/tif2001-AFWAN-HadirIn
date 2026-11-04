@@ -35,6 +35,24 @@ const INITIAL_USERS = [
     joinedAt: '2024-03-01',
   },
   {
+    id: 'u-budi',
+    tenantId: 't-nlg',
+    nik: '3173011508960003',
+    fullName: 'Budi Santoso',
+    role: 'karyawan',
+    position: 'Operator Gudang',
+    joinedAt: '2024-06-15',
+  },
+  {
+    id: 'u-rina',
+    tenantId: 't-nlg',
+    nik: '3173012204970004',
+    fullName: 'Rina Wulandari',
+    role: 'karyawan',
+    position: 'Staf Administrasi Logistik',
+    joinedAt: '2025-01-10',
+  },
+  {
     id: 'u-hendra',
     tenantId: 't-nlg',
     nik: '3173011201880001',
@@ -320,7 +338,7 @@ export function AppStoreProvider({ children }) {
 
   const baseDate = useMemo(() => new Date(2026, 10, 4, 8, 1, 0), []);
   const [tenants] = useState(INITIAL_TENANTS);
-  const [users] = useState(INITIAL_USERS);
+  const [users, setUsers] = useState(INITIAL_USERS);
   const [historyAttendances] = useState(() =>
     buildInitialAttendances(baseDate)
   );
@@ -329,7 +347,27 @@ export function AppStoreProvider({ children }) {
     buildDefaultTodayAttendance(baseDate)
   );
   const [journals, setJournals] = useState(() => buildInitialJournals());
-  const [consents] = useState([]);
+  const [consents, setConsents] = useState([]);
+
+  const changePassword = (userId, nextPassword) => {
+    setUsers((prev) =>
+      prev.map((u) => (u.id === userId ? { ...u, password: nextPassword } : u))
+    );
+  };
+
+  const respondConsent = (consentId, approved) => {
+    setConsents((prev) =>
+      prev.map((c) =>
+        c.id === consentId
+          ? {
+              ...c,
+              status: approved ? 'APPROVED' : 'REJECTED',
+              decidedAt: now.toISOString(),
+            }
+          : c
+      )
+    );
+  };
 
   const cycleClockMode = () => {
     if (REALTIME_CLOCK_ONLY) return;
@@ -589,6 +627,8 @@ export function AppStoreProvider({ children }) {
     checkOut,
     addJournal,
     reviseJournal,
+    changePassword,
+    respondConsent,
   };
 
   return (

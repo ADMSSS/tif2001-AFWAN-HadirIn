@@ -84,8 +84,11 @@ export function EmployeeDashboard({ session, onNavigate }) {
   } = useStore();
   const { now } = useClock();
 
-  const user = users.find((u) => u.id === session.userId);
-  const tenant = tenants.find((t) => t.id === session.tenantId);
+  const user =
+    users.find((u) => u.id === session.userId) ||
+    users.find((u) => u.nik === session.nik) ||
+    users[0];
+  const tenant = tenants.find((t) => t.id === session.tenantId) || tenants[0];
 
   const key = dateKey(now);
   const mine = useMemo(
@@ -135,7 +138,8 @@ export function EmployeeDashboard({ session, onNavigate }) {
         : now.getHours() < 18
           ? 'Selamat sore'
           : 'Selamat malam';
-  const firstName = user.fullName.split(' ')[0];
+  const activeFullName = (session.name || user.fullName || 'Karyawan').trim();
+  const firstName = activeFullName.split(/\s+/)[0];
   const running =
     today && !today.checkOut ? diffMinutes(now, today.checkIn) : 0;
   const weekend = isWeekendDate(now);

@@ -189,6 +189,23 @@ export function Empty({ icon, title, text }) {
   );
 }
 
+export function Meter({ value, tone = 'dark' }) {
+  return (
+    <div
+      className="h-2 bg-secondary border border-foreground/40 rounded-full overflow-hidden"
+      role="progressbar"
+      aria-valuenow={value}
+      aria-valuemin={0}
+      aria-valuemax={100}
+    >
+      <div
+        className={`h-full ${tone === 'dark' ? 'bg-foreground' : 'bg-accent'}`}
+        style={{ width: `${Math.min(100, value)}%` }}
+      />
+    </div>
+  );
+}
+
 export function TableWrap({ children, min = 640 }) {
   return (
     <div className="border-2 border-foreground rounded-md bg-card overflow-x-auto no-scrollbar">

@@ -19,7 +19,7 @@ api.interceptors.request.use((config) => {
 export const authService = {
   /**
    * Login Karyawan & Admin Perusahaan (Multi-Tenant B2B)
-   * Menggunakan Kode Perusahaan (Tenant ID), NIK, dan Kata Sandi
+   * Menggunakan Kode Perusahaan (Tenant Code), NIK (16 digit), dan Kata Sandi
    */
   loginTenant: async ({ companyCode, nik, password }) => {
     const response = await api.post('/auth/login', {
@@ -36,10 +36,11 @@ export const authService = {
 
   /**
    * Login Khusus Super Admin (Platform Owner)
+   * Menggunakan Username dan Kata Sandi
    */
-  loginSuperAdmin: async ({ email, password }) => {
+  loginSuperAdmin: async ({ username, password }) => {
     const response = await api.post('/auth/super-admin/login', {
-      email: email.trim(),
+      username: username.trim(),
       password,
     });
     if (response.data?.token) {

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 
 /**
- * Komponen InputText Reusable & Modular (Sesuai Desain Figma HadirIn B2B)
+ * Komponen InputText Reusable & Modular (Sesuai Desain Figma HadirIn v3)
  */
 export default function InputText({
   label,
@@ -24,11 +24,11 @@ export default function InputText({
   const effectiveType = isPassword ? (showPassword ? 'text' : 'password') : type;
 
   return (
-    <div className={`w-full mb-4 ${className}`}>
+    <div className={`w-full mb-5 ${className}`}>
       {label && (
         <label
           htmlFor={id || name}
-          className="block text-[11px] font-bold tracking-[0.14em] uppercase text-[#666] mb-2"
+          className="block font-['JetBrains_Mono',monospace] text-[11px] font-medium tracking-[0.18em] uppercase text-[#4a4e43] mb-2"
         >
           {label} {required && <span className="text-red-500">*</span>}
         </label>
@@ -46,13 +46,13 @@ export default function InputText({
           aria-invalid={!!error}
           aria-describedby={error ? `${name}-error` : undefined}
           className={[
-            'w-full h-[52px] px-4 text-[15px] bg-white outline-none',
-            isPassword ? 'pr-12' : 'pr-4',
-            'placeholder-[#aaa] text-[#111] transition-all border',
+            "w-full h-[48px] px-4 font-['JetBrains_Mono',monospace] text-[13.5px] bg-[#f8f7f2] outline-none",
+            isPassword ? 'pr-11' : 'pr-4',
+            'placeholder-[#8c9184] text-[#14170f] transition-all border rounded-[4px]',
             error
-              ? 'border-red-500'
-              : 'border-[#111] focus:border-[#ccff00] focus:shadow-[0_0_0_3px_rgba(204,255,0,0.25)]',
-            disabled ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : '',
+              ? 'border-red-500 focus:border-red-600'
+              : 'border-[#6e7365] focus:border-[#14170f] focus:bg-white',
+            disabled ? 'opacity-60 cursor-not-allowed' : '',
           ].join(' ')}
           {...props}
         />
@@ -60,13 +60,13 @@ export default function InputText({
         {isPassword && (
           <button
             type="button"
-            onClick={() => setShowPassword(s => !s)}
+            onClick={() => setShowPassword((s) => !s)}
             disabled={disabled}
             tabIndex={-1}
             aria-label={showPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-[#888] hover:text-[#111] transition-colors cursor-pointer"
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#6e7365] hover:text-[#14170f] transition-colors cursor-pointer"
           >
-            {showPassword ? <EyeOff size={19} /> : <Eye size={19} />}
+            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
           </button>
         )}
       </div>
@@ -76,7 +76,7 @@ export default function InputText({
           {error}
         </p>
       ) : helperText ? (
-        <p className="mt-1.5 text-[12px] text-[#666]">
+        <p className="mt-1.5 text-[12px] text-[#5c6055]">
           {helperText}
         </p>
       ) : null}

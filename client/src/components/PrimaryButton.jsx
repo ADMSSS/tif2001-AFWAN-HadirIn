@@ -1,5 +1,7 @@
+import { ArrowRight } from 'lucide-react';
+
 /**
- * Komponen PrimaryButton Modular (Sesuai Desain Figma HadirIn)
+ * Komponen PrimaryButton Modular (Sesuai Desain Figma HadirIn v3)
  */
 export default function PrimaryButton({
   children,
@@ -18,16 +20,17 @@ export default function PrimaryButton({
       onClick={onClick}
       disabled={isDisabled}
       className={[
-        'w-full h-[54px] bg-[#111] text-[#ccff00] font-extrabold text-[16px] tracking-wide',
-        'flex items-center justify-between px-6 transition-colors',
-        'hover:bg-[#1d1d1d] active:bg-[#2d2d2d]',
+        'w-full h-[52px] bg-[#14170f] text-[#c5f82a] font-bold text-[15px] rounded-[4px]',
+        'shadow-[3px_3px_0px_#c5f82a] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[2px_2px_0px_#c5f82a]',
+        'flex items-center justify-between px-5 transition-all',
+        'hover:bg-[#1e2217]',
         'disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer',
         className,
       ].join(' ')}
       {...props}
     >
       <span>{loading ? 'Memproses...' : children}</span>
-      {!loading && <span className="text-[22px] leading-none font-light">→</span>}
+      {!loading && <ArrowRight size={18} strokeWidth={2.2} className="text-[#c5f82a]" />}
     </button>
   );
 }

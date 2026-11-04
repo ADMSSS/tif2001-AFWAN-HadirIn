@@ -1,89 +1,88 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 
 export const inputCls =
-  'w-full bg-transparent outline-none placeholder:text-muted-foreground/70';
+  'w-full bg-transparent focus:outline-none font-sans disabled:opacity-60';
 
 /**
- * Komponen Field / InputText (1:1 dari Figma Make ui.tsx)
+ * InputText - 1:1 dengan komponen Field pada figma desain/src/app/component/ui.tsx
  */
-export default function InputText({
+const InputText = ({
   label,
-  id,
   name,
   type = 'text',
-  placeholder = '',
+  placeholder,
   value,
   onChange,
-  error = '',
-  helperText = '',
-  hint = '',
+  error,
+  helperText,
+  hint,
   disabled = false,
+  mono = false,
+  autoComplete,
+  inputMode,
+  maxLength,
   className = '',
-  inputClassName = '',
-  ...props
-}) {
-  const [show, setShow] = useState(false);
+}) => {
+  const [showPassword, setShowPassword] = useState(false);
   const isPassword = type === 'password';
-  const effectiveType = isPassword ? (show ? 'text' : 'password') : type;
-  const displayHint = hint || helperText;
+  const resolvedType = isPassword ? (showPassword ? 'text' : 'password') : type;
+  const resolvedHint = hint || helperText;
 
   return (
-    <label htmlFor={id || name} className={`block ${className}`}>
-      <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-        {label}
-      </span>
-      <div className="mt-1.5 border-2 border-foreground rounded-md bg-card px-4 py-2.5 focus-within:shadow-[4px_4px_0_0_#c9f23c] focus-within:-translate-y-px transition-all">
-        {isPassword ? (
-          <div className="flex items-center gap-2">
-            <input
-              id={id || name}
-              name={name}
-              type={effectiveType}
-              value={value}
-              onChange={onChange}
-              disabled={disabled}
-              placeholder={placeholder}
-              className={`${inputCls} ${inputClassName}`}
-              {...props}
-            />
-            <button
-              type="button"
-              onClick={() => setShow((s) => !s)}
-              disabled={disabled}
-              aria-label={
-                show ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'
-              }
-              className="text-muted-foreground hover:text-foreground"
-            >
-              {show ? (
-                <EyeOff className="w-4 h-4" />
-              ) : (
-                <Eye className="w-4 h-4" />
-              )}
-            </button>
-          </div>
-        ) : (
-          <input
-            id={id || name}
-            name={name}
-            type={effectiveType}
-            value={value}
-            onChange={onChange}
-            disabled={disabled}
-            placeholder={placeholder}
-            className={`${inputCls} ${inputClassName}`}
-            {...props}
-          />
+    <label className={`block ${className}`}>
+      {label && (
+        <span className="block font-mono text-[11px] uppercase tracking-wider text-foreground/80">
+          {label}
+        </span>
+      )}
+      <div
+        className={`mt-1 flex items-center gap-2 border-2 rounded-md bg-card px-3.5 py-2 lg:px-4 lg:py-2.5 focus-within:shadow-[4px_4px_0_0_#c9f23c] focus-within:-translate-y-px transition-all ${
+          error ? 'border-destructive' : 'border-foreground'
+        }`}
+      >
+        <input
+          id={name}
+          name={name}
+          type={resolvedType}
+          value={value}
+          onChange={onChange}
+          placeholder={placeholder}
+          disabled={disabled}
+          autoComplete={autoComplete}
+          inputMode={inputMode}
+          maxLength={maxLength}
+          aria-invalid={Boolean(error)}
+          className={`${inputCls} text-sm ${mono ? 'font-mono tracking-wider' : ''}`}
+        />
+        {isPassword && (
+          <button
+            type="button"
+            onClick={() => setShowPassword((prev) => !prev)}
+            aria-label={showPassword ? 'Sembunyikan sandi' : 'Tampilkan sandi'}
+            className="text-muted-foreground hover:text-foreground cursor-pointer"
+            tabIndex={-1}
+          >
+            {showPassword ? (
+              <EyeOff className="w-4 h-4" />
+            ) : (
+              <Eye className="w-4 h-4" />
+            )}
+          </button>
         )}
       </div>
-      {error ? (
-        <span className="block text-xs text-destructive mt-1.5">{error}</span>
-      ) : displayHint ? (
-        <span className="block text-xs text-muted-foreground mt-1.5">
-          {displayHint}
+      {resolvedHint && !error && (
+        <span className="block text-[11px] text-muted-foreground mt-1">
+          {resolvedHint}
         </span>
-      ) : null}
+      )}
+      {error && (
+        <span role="alert" className="block text-xs text-destructive font-medium mt-1">
+          {error}
+        </span>
+      )}
     </label>
   );
-}
+};
+
+export default InputText;

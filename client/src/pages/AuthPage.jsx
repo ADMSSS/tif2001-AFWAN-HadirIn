@@ -1,246 +1,282 @@
-import { useState } from 'react';
-import { Crown, UserRound } from 'lucide-react';
+import React, { useState } from 'react';
+import { Crown, UserCheck } from 'lucide-react';
 import { z } from 'zod';
 import InputText from '../components/InputText';
 import PrimaryButton from '../components/PrimaryButton';
 import { authService } from '../services/api';
 
-// ─── Wordmark (1:1 dari Figma Make ui.tsx) ────────────────────────────────────
-export function Wordmark({ dark = false, className = '' }) {
+/**
+ * Wordmark - 1:1 dengan komponen Wordmark pada figma desain/src/app/component/ui.tsx
+ */
+export function Wordmark({ dark = false, className = 'text-2xl' }) {
   return (
-    <span
-      className={`font-display font-extrabold tracking-tight leading-none ${className}`}
+    <div
+      className={`inline-flex items-baseline gap-1 font-display font-extrabold tracking-tight select-none ${className}`}
     >
-      Hadir
+      <span className={dark ? 'text-sidebar-foreground' : 'text-foreground'}>
+        Hadir
+      </span>
       <span
-        className={
-          dark
-            ? 'text-accent'
-            : 'bg-foreground text-accent px-1.5 ml-0.5 rounded-sm'
-        }
+        className={`px-1.5 py-0.5 rounded-sm ${
+          dark ? 'bg-accent text-foreground' : 'bg-foreground text-accent'
+        }`}
       >
         In
       </span>
-    </span>
+    </div>
   );
 }
 
-// ─── Zod Validation Schemas ───────────────────────────────────────────────────
+// ─── Skema Validasi Zod ──────────────────────────────────────────────────────
 const tenantLoginSchema = z.object({
-  code: z.string().min(1, 'Kode perusahaan, NIK, dan kata sandi wajib diisi.'),
+  companyCode: z.string().min(1, 'Kode perusahaan wajib diisi.'),
   nik: z
     .string()
-    .min(1, 'Kode perusahaan, NIK, dan kata sandi wajib diisi.')
-    .length(16, 'NIK harus terdiri dari 16 digit angka.'),
-  password: z
-    .string()
-    .min(1, 'Kode perusahaan, NIK, dan kata sandi wajib diisi.'),
+    .min(1, 'NIK wajib diisi.')
+    .regex(/^\d{16}$/, 'NIK harus terdiri dari 16 digit angka.'),
+  password: z.string().min(1, 'Kata sandi wajib diisi.'),
 });
 
 const superAdminLoginSchema = z.object({
-  nik: z.string().min(1, 'Username dan kata sandi wajib diisi.'),
-  password: z.string().min(1, 'Username dan kata sandi wajib diisi.'),
+  username: z.string().min(1, 'Username wajib diisi.'),
+  password: z.string().min(1, 'Kata sandi wajib diisi.'),
 });
 
-export default function AuthPage({ onAuth }) {
-  const [mode, setMode] = useState('tenant');
-  const [code, setCode] = useState('');
+/**
+ * AuthPage - Halaman Login proporsional sesuai screenshot Figma:
+ * - Header + Judul + Seluruh Input + Tombol Masuk muat dalam 1 layar (100vh) tanpa scroll
+ * - Scroll ke bawah hanya untuk mengakses tombol "Masuk sebagai Super Admin platform"
+ */
+const AuthPage = ({ onAuth }) => {
+  const [superMode, setSuperMode] = useState(false);
+  const [code, setCode] = useState('NLG');
   const [nik, setNik] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [err, setErr] = useState(null);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const switchMode = (m) => {
-    setMode(m);
-    setError('');
-    setCode('');
+  const switchMode = (nextSuperMode) => {
+    setSuperMode(nextSuperMode);
     setNik('');
     setPassword('');
+    setErrors({});
+    setErr(null);
+    setSuccessMessage('');
+  };
+
+  const handleFieldChange = (field, setter) => (e) => {
+    let val = e.target.value;
+    if (field === 'companyCode') {
+      val = val.toUpperCase();
+    }
+    setter(val);
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: '' }));
+    }
+    if (err) setErr(null);
   };
 
   const submit = async (e) => {
     e.preventDefault();
-    setError('');
+    setErr(null);
+    setSuccessMessage('');
 
-    if (mode === 'super') {
-      const parsed = superAdminLoginSchema.safeParse({ nik, password });
-      if (!parsed.success) {
-        setError('Username dan kata sandi wajib diisi.');
-        return;
-      }
-      setLoading(true);
-      try {
-        const res = await authService.loginSuperAdmin({
-          username: nik,
-          password,
-        });
-        if (onAuth) onAuth(res);
-      } catch (err) {
-        setError(
-          err?.response?.data?.message ||
-            'Username atau kata sandi Super Admin salah.',
-        );
-      } finally {
-        setLoading(false);
-      }
-      return;
-    }
+    const payload = superMode
+      ? { username: nik.trim(), password }
+      : { companyCode: code.trim(), nik: nik.trim(), password };
 
-    const parsed = tenantLoginSchema.safeParse({ code, nik, password });
+    const activeSchema = superMode ? superAdminLoginSchema : tenantLoginSchema;
+    const parsed = activeSchema.safeParse(payload);
+
     if (!parsed.success) {
-      setError(
-        parsed.error.errors[0]?.message ||
-          'Kode perusahaan, NIK, dan kata sandi wajib diisi.',
-      );
+      const fieldErrors = {};
+      for (const issue of parsed.error.issues) {
+        const key = issue.path[0];
+        if (key && !fieldErrors[key]) {
+          fieldErrors[key] = issue.message;
+        }
+      }
+      setErrors(fieldErrors);
       return;
     }
 
-    setLoading(true);
+    setErrors({});
+    setIsSubmitting(true);
+
     try {
-      const res = await authService.loginTenant({
-        companyCode: code,
-        nik,
-        password,
-      });
-      if (onAuth) onAuth(res);
-    } catch (err) {
-      setError(
-        err?.response?.data?.message ||
-          'Kode perusahaan, NIK, atau kata sandi tidak sesuai.',
+      const response = superMode
+        ? await authService.loginSuperAdmin(parsed.data)
+        : await authService.loginTenant(parsed.data);
+
+      const token = response?.data?.token || response?.token;
+      if (token) {
+        localStorage.setItem('hadirin_token', token);
+      }
+      if (onAuth) {
+        onAuth(response);
+      }
+
+      setSuccessMessage(
+        superMode
+          ? 'Autentikasi Konsol Super Admin berhasil.'
+          : `Autentikasi ruang kerja (${parsed.data.companyCode}) berhasil.`
+      );
+    } catch (apiError) {
+      setErr(
+        apiError?.response?.data?.message ||
+          apiError?.message ||
+          (superMode
+            ? 'Kredensial Super Admin tidak valid.'
+            : 'Kode perusahaan, NIK, atau kata sandi tidak cocok.')
       );
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-white relative">
-      <header className="hidden lg:block relative bg-accent text-foreground h-[21vh] min-h-[170px]">
-        <div className="absolute top-6 left-10">
-          <Wordmark className="text-4xl" />
+    <div className="min-h-screen flex flex-col bg-white">
+      {/* Header Desktop: proporsional 18vh sehingga seluruh form input muat dalam 1 layar */}
+      <header className="hidden lg:block relative bg-accent text-foreground h-[18vh] min-h-[115px] max-h-[155px]">
+        <div className="absolute top-4 left-7">
+          <Wordmark className="text-2xl" />
         </div>
-        <h1 className="absolute inset-0 flex flex-col items-center justify-center text-center font-display font-extrabold text-5xl leading-[1.1] tracking-tight">
-          <span>Hadir di kantor,</span>
-          <span>
+        <div className="h-full flex items-center justify-center px-10 text-center">
+          <h1 className="font-display font-extrabold text-3xl xl:text-[34px] leading-[1.15] tracking-tight">
+            Hadir di kantor,
+            <br />
             bukan di{' '}
-            <span className="inline-block bg-foreground text-accent px-3 py-0.5 rounded-sm -rotate-1">
+            <span className="inline-block bg-foreground text-accent px-2.5 py-0.5 rounded-sm -rotate-1">
               peta palsu.
             </span>
-          </span>
-        </h1>
+          </h1>
+        </div>
       </header>
 
-      <header className="lg:hidden bg-accent text-foreground px-6 sm:px-8 py-8 flex flex-col gap-10">
-        <Wordmark className="text-3xl" />
-        <h1 className="font-display font-extrabold text-3xl sm:text-4xl leading-[1.05] tracking-tight max-w-sm">
-          Hadir di kantor,
-          <br />
-          bukan di
-          <br />
-          <span className="inline-block bg-foreground text-accent px-2 py-0.5 rounded-sm -rotate-1 mt-1">
-            peta palsu.
-          </span>
-        </h1>
+      {/* Header Mobile */}
+      <header className="lg:hidden bg-accent text-foreground px-6 sm:px-8 py-6 flex flex-col gap-6">
+        <div className="flex items-center justify-between">
+          <Wordmark className="text-2xl" />
+        </div>
+        <div>
+          <h1 className="font-display font-extrabold text-2xl sm:text-3xl leading-[1.12] tracking-tight">
+            Hadir di kantor, bukan di{' '}
+            <span className="inline-block bg-foreground text-accent px-2 py-0.5 rounded-sm -rotate-1">
+              peta palsu.
+            </span>
+          </h1>
+        </div>
       </header>
 
-      <section className="px-6 lg:px-14">
-        <div className="w-full lg:w-[80%] max-w-[1400px] mx-auto">
-          <div className="lg:min-h-[79svh] flex flex-col justify-start lg:justify-center pt-8 lg:pt-6 pb-10">
-            <h2 className="font-display text-3xl lg:text-5xl font-extrabold tracking-tight">
-              {mode === 'tenant'
-                ? 'Masuk ke ruang kerja Anda'
-                : 'Konsol Super Admin'}
+      {/* Bagian Form: 1 layar penuh (82vh) untuk Judul + Input + Tombol Masuk, scroll hanya untuk tombol Super Admin */}
+      <section className="flex-1 flex flex-col px-6 lg:px-14">
+        <div className="w-full lg:w-[74%] max-w-[920px] mx-auto">
+          {/* Area 1 Interface (Tanpa Scroll di Desktop) */}
+          <div className="lg:min-h-[82vh] flex flex-col justify-start lg:justify-center pt-6 lg:py-4">
+            <h2 className="font-display text-2xl lg:text-[30px] font-extrabold tracking-tight leading-tight">
+              {superMode ? 'Konsol Super Admin' : 'Masuk ke ruang kerja Anda'}
             </h2>
-            <p className="text-muted-foreground text-sm lg:text-xl mt-1.5 lg:mt-3 mb-6 lg:mb-10">
-              {mode === 'tenant'
-                ? 'Gunakan akun yang telah didaftarkan oleh admin perusahaan Anda.'
-                : 'Kelola tenant, lisensi, dan isolasi data tanpa melihat data pribadi karyawan.'}
+            <p className="text-muted-foreground mt-1 text-xs lg:text-sm">
+              {superMode
+                ? 'Kelola tenant, lisensi, dan isolasi data tanpa melihat data pribadi karyawan.'
+                : 'Gunakan akun yang telah didaftarkan oleh admin perusahaan Anda.'}
             </p>
 
-            <form
-              onSubmit={submit}
-              className="space-y-4 lg:space-y-7 lg:text-2xl lg:[&_label>span:first-child]:text-base lg:[&_label>div]:px-7 lg:[&_label>div]:py-5 lg:[&_label>div]:mt-2.5 lg:[&_label>div+span]:text-base"
-              noValidate
-            >
-              {mode === 'tenant' && (
+            <form onSubmit={submit} className="mt-4 lg:mt-5 space-y-3 lg:space-y-3.5" noValidate>
+              {!superMode && (
                 <InputText
-                  id="login-code"
-                  name="code"
                   label="Kode perusahaan"
-                  hint="Diberikan oleh admin perusahaan, mis. NLG"
+                  name="companyCode"
                   value={code}
-                  onChange={(e) => setCode(e.target.value.toUpperCase())}
+                  onChange={handleFieldChange('companyCode', setCode)}
                   placeholder="NLG"
-                  inputClassName="font-mono tracking-widest"
-                  autoComplete="organization"
-                  disabled={loading}
+                  mono
+                  hint="Diberikan oleh admin perusahaan, mis. NLG"
+                  error={errors.companyCode}
+                  disabled={isSubmitting}
                 />
               )}
 
               <InputText
-                id="login-nik"
-                name="nik"
-                label={mode === 'tenant' ? 'NIK' : 'Username'}
+                label={superMode ? 'Username' : 'NIK'}
+                name={superMode ? 'username' : 'nik'}
                 value={nik}
-                onChange={(e) =>
-                  setNik(
-                    mode === 'tenant'
-                      ? e.target.value.replace(/\D/g, '').slice(0, 16)
-                      : e.target.value,
-                  )
-                }
-                inputMode={mode === 'tenant' ? 'numeric' : 'text'}
-                placeholder={mode === 'tenant' ? '16 digit NIK' : 'superadmin'}
-                inputClassName={
-                  mode === 'tenant' ? 'font-mono tracking-wider' : ''
-                }
-                autoComplete="username"
-                disabled={loading}
+                onChange={handleFieldChange(superMode ? 'username' : 'nik', setNik)}
+                placeholder={superMode ? 'superadmin' : '16 digit NIK'}
+                mono={!superMode}
+                inputMode={superMode ? 'text' : 'numeric'}
+                maxLength={superMode ? undefined : 16}
+                error={superMode ? errors.username : errors.nik}
+                disabled={isSubmitting}
               />
 
               <InputText
-                id="login-password"
+                label="Kata sandi"
                 name="password"
                 type="password"
-                label="Kata sandi"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={handleFieldChange('password', setPassword)}
                 placeholder="••••••••"
-                autoComplete="current-password"
-                disabled={loading}
+                error={errors.password}
+                disabled={isSubmitting}
               />
 
-              {error && (
-                <p
+              {err && (
+                <div
                   role="alert"
-                  className="text-sm font-medium text-destructive border-l-4 border-destructive pl-3 py-1"
+                  className="border-2 border-destructive bg-destructive/10 text-destructive px-3.5 py-2 rounded-md text-xs font-medium"
                 >
-                  {error}
-                </p>
+                  {err}
+                </div>
               )}
 
-              <PrimaryButton type="submit" loading={loading}>
-                Masuk
-              </PrimaryButton>
-            </form>
+              {successMessage && (
+                <div
+                  role="status"
+                  className="border-2 border-foreground bg-accent/35 text-foreground px-3.5 py-2 rounded-md text-xs font-medium"
+                >
+                  {successMessage}
+                </div>
+              )}
 
+              <div className="pt-1">
+                <PrimaryButton type="submit" isLoading={isSubmitting}>
+                  Masuk
+                </PrimaryButton>
+              </div>
+            </form>
+          </div>
+
+          {/* Area Bawah (Muncul saat di-scroll ke bawah) */}
+          <div className="pt-2 pb-8">
             <button
               type="button"
-              onClick={() => switchMode(mode === 'tenant' ? 'super' : 'tenant')}
-              className="mt-4 lg:mt-6 flex items-center gap-2 text-sm lg:text-lg font-medium underline underline-offset-4 hover:text-muted-foreground"
+              onClick={() => switchMode(!superMode)}
+              className="text-xs lg:text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 cursor-pointer"
             >
-              {mode === 'tenant' ? (
-                <Crown className="w-4 h-4" />
+              {superMode ? (
+                <>
+                  <UserCheck className="w-3.5 h-3.5" />
+                  <span className="underline underline-offset-4">
+                    Kembali ke login perusahaan
+                  </span>
+                </>
               ) : (
-                <UserRound className="w-4 h-4" />
+                <>
+                  <Crown className="w-3.5 h-3.5" />
+                  <span className="underline underline-offset-4">
+                    Masuk sebagai Super Admin platform
+                  </span>
+                </>
               )}
-              {mode === 'tenant'
-                ? 'Masuk sebagai Super Admin platform'
-                : 'Kembali ke login perusahaan'}
             </button>
           </div>
         </div>
       </section>
     </div>
   );
-}
+};
+
+export default AuthPage;

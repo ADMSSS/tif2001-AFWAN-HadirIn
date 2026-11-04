@@ -138,12 +138,12 @@ const AuthPage = ({ onAuth }) => {
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
-      {/* Header Desktop: proporsional 18vh sehingga seluruh form input muat dalam 1 layar */}
-      <header className="hidden lg:block relative bg-accent text-foreground h-[18vh] min-h-[115px] max-h-[155px]">
-        <div className="absolute top-4 left-7">
+      {/* Header Desktop: logo di kiri atas, teks utama sedikit diturunkan agar tidak sejajar/bertabrakan dengan logo */}
+      <header className="hidden lg:block relative bg-accent text-foreground h-[20vh] min-h-[130px] max-h-[165px]">
+        <div className="absolute top-3.5 left-7">
           <Wordmark className="text-2xl" />
         </div>
-        <div className="h-full flex items-center justify-center px-10 text-center">
+        <div className="h-full flex items-center justify-center pt-5 px-10 text-center">
           <h1 className="font-display font-extrabold text-3xl xl:text-[34px] leading-[1.15] tracking-tight">
             Hadir di kantor,
             <br />
@@ -155,14 +155,16 @@ const AuthPage = ({ onAuth }) => {
         </div>
       </header>
 
-      {/* Header Mobile */}
-      <header className="lg:hidden bg-accent text-foreground px-6 sm:px-8 py-6 flex flex-col gap-6">
+      {/* Header Mobile: dibuat 2 baris sama seperti versi desktop */}
+      <header className="lg:hidden bg-accent text-foreground px-6 sm:px-8 py-6 flex flex-col gap-5">
         <div className="flex items-center justify-between">
           <Wordmark className="text-2xl" />
         </div>
         <div>
-          <h1 className="font-display font-extrabold text-2xl sm:text-3xl leading-[1.12] tracking-tight">
-            Hadir di kantor, bukan di{' '}
+          <h1 className="font-display font-extrabold text-2xl sm:text-3xl leading-[1.15] tracking-tight">
+            Hadir di kantor,
+            <br />
+            bukan di{' '}
             <span className="inline-block bg-foreground text-accent px-2 py-0.5 rounded-sm -rotate-1">
               peta palsu.
             </span>
@@ -170,11 +172,11 @@ const AuthPage = ({ onAuth }) => {
         </div>
       </header>
 
-      {/* Bagian Form: 1 layar penuh (82vh) untuk Judul + Input + Tombol Masuk, scroll hanya untuk tombol Super Admin */}
+      {/* Bagian Form: 1 layar penuh (80vh) untuk Judul + Input + Tombol Masuk, scroll hanya untuk tombol Super Admin */}
       <section className="flex-1 flex flex-col px-6 lg:px-14">
         <div className="w-full lg:w-[74%] max-w-[920px] mx-auto">
           {/* Area 1 Interface (Tanpa Scroll di Desktop) */}
-          <div className="lg:min-h-[82vh] flex flex-col justify-start lg:justify-center pt-6 lg:py-4">
+          <div className="lg:min-h-[80vh] flex flex-col justify-start lg:justify-center pt-6 lg:py-4">
             <h2 className="font-display text-2xl lg:text-[30px] font-extrabold tracking-tight leading-tight">
               {superMode ? 'Konsol Super Admin' : 'Masuk ke ruang kerja Anda'}
             </h2>

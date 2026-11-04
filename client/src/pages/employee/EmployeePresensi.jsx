@@ -72,7 +72,7 @@ export function EmployeePresensi({ session, onNavigate }) {
     Boolean(openRec) && outCheck.ok && !outCheck.hasTodayJournal;
   const mode = inCheck.ok
     ? 'masuk'
-    : openRec && outCheck.ok && outCheck.hasTodayJournal
+    : openRec && outCheck.ok
       ? 'pulang'
       : null;
   const today = mine.find((a) => a.date === key);
@@ -104,6 +104,8 @@ export function EmployeePresensi({ session, onNavigate }) {
             mode={mode}
             tenant={tenant}
             userId={user.id}
+            needJournal={needJournalBeforeCheckout}
+            onGoJournal={() => onNavigate('jurnal')}
             onDone={setReceipt}
           />
         ) : today?.checkOut ? (

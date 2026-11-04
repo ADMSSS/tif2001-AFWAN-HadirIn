@@ -324,18 +324,21 @@ function Radar({ tenant, reading, distance, ok }) {
   );
 }
 
-export function AttendanceFlow({ mode, tenant, userId, onDone }) {
-  const { readLocation, currentIp, checkIn, checkOut } = useStore();
+export function AttendanceFlow({ mode, tenant, userId, onDone, needJournal, onGoJournal }) {
+  const { readLocation, toggleLocationScenario, currentIp, checkIn, checkOut } = useStore();
   const { now } = useClock();
   const [loc, setLoc] = useState({ phase: 'loading' });
   const [locAttempt, setLocAttempt] = useState(0);
   const [camera, setCamera] = useState(false);
   const [sending, setSending] = useState(false);
 
-  const run = useCallback(() => {
+  const run = useCallback((switchScenario = false) => {
+    if (switchScenario && toggleLocationScenario) {
+      toggleLocationScenario();
+    }
     setLoc({ phase: 'loading' });
     setLocAttempt((a) => a + 1);
-  }, []);
+  }, [toggleLocationScenario]);
 
   useEffect(() => {
     let cancelled = false;
@@ -525,6 +528,9 @@ export function AttendanceFlow({ mode, tenant, userId, onDone }) {
                       </li>
                     ))}
                   </ul>
+                  <p className="mt-1.5 text-muted-foreground">
+                    Mendekatlah ke kantor lalu klik Periksa ulang lokasi.
+                  </p>
                 </div>
               )}
             </div>
@@ -533,9 +539,31 @@ export function AttendanceFlow({ mode, tenant, userId, onDone }) {
       </section>
 
       <div className="mt-5 space-y-3">
+        {mode === 'pulang' && needJournal && (
+          <div
+            role="alert"
+            className="border-2 border-foreground rounded-md bg-accent p-3 text-sm"
+          >
+            <p className="font-display font-bold">
+              Jurnal hari ini belum diisi
+            </p>
+            <p className="text-xs mt-0.5">
+              Anda wajib mengisi jurnal kerja hari ini terlebih dahulu sebelum presensi pulang.
+            </p>
+            {onGoJournal && (
+              <button
+                type="button"
+                onClick={onGoJournal}
+                className="mt-2 font-display font-bold text-xs underline underline-offset-4 cursor-pointer"
+              >
+                Isi jurnal sekarang →
+              </button>
+            )}
+          </div>
+        )}
         <button
           type="button"
-          disabled={!inside}
+          disabled={!inside || (mode === 'pulang' && needJournal)}
           onClick={() => setCamera(true)}
           className="w-full flex items-center justify-center gap-2 bg-foreground text-accent font-display font-extrabold text-lg rounded-md border-2 border-foreground py-4 shadow-[4px_4px_0_0_#c9f23c] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0_0_#c9f23c] transition-all disabled:opacity-40 disabled:pointer-events-none disabled:shadow-none focus-visible:outline-2 focus-visible:outline-offset-2 cursor-pointer"
         >
@@ -550,7 +578,7 @@ export function AttendanceFlow({ mode, tenant, userId, onDone }) {
           variant="ghost"
           size="sm"
           className="w-full"
-          onClick={() => void run()}
+          onClick={() => run(true)}
           disabled={loc.phase === 'loading'}
         >
           <RefreshCw size={14} /> Periksa ulang lokasi

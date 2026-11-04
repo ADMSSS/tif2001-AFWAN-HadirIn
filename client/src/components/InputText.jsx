@@ -1,80 +1,88 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 
+const inputCls =
+  'w-full bg-transparent focus:outline-none font-sans disabled:opacity-60';
+
 /**
- * Komponen InputText Reusable & Modular (Sesuai Desain Figma HadirIn)
+ * InputText - 1:1 dengan komponen Field pada figma desain/src/app/component/ui.tsx
  */
-export default function InputText({
+const InputText = ({
   label,
-  id,
   name,
   type = 'text',
-  placeholder = '',
+  placeholder,
   value,
   onChange,
-  error = '',
-  required = false,
+  error,
+  helperText,
+  hint,
   disabled = false,
+  mono = false,
+  autoComplete,
+  inputMode,
+  maxLength,
   className = '',
-  ...props
-}) {
+}) => {
   const [showPassword, setShowPassword] = useState(false);
   const isPassword = type === 'password';
-  const effectiveType = isPassword ? (showPassword ? 'text' : 'password') : type;
+  const resolvedType = isPassword ? (showPassword ? 'text' : 'password') : type;
+  const resolvedHint = hint || helperText;
 
   return (
-    <div className={`w-full mb-4 ${className}`}>
+    <label className={`block ${className}`}>
       {label && (
-        <label
-          htmlFor={id || name}
-          className="block text-[11px] font-bold tracking-[0.14em] uppercase text-[#666] mb-2"
-        >
-          {label} {required && <span className="text-red-500">*</span>}
-        </label>
+        <span className="block font-mono text-[11px] uppercase tracking-wider text-foreground/80">
+          {label}
+        </span>
       )}
-
-      <div className="relative">
+      <div
+        className={`mt-1 flex items-center gap-2 border-2 rounded-md bg-card px-3.5 py-2 lg:px-4 lg:py-2.5 focus-within:shadow-[4px_4px_0_0_#c9f23c] focus-within:-translate-y-px transition-all ${
+          error ? 'border-destructive' : 'border-foreground'
+        }`}
+      >
         <input
-          id={id || name}
+          id={name}
           name={name}
-          type={effectiveType}
+          type={resolvedType}
           value={value}
           onChange={onChange}
-          disabled={disabled}
           placeholder={placeholder}
-          aria-invalid={!!error}
-          aria-describedby={error ? `${name}-error` : undefined}
-          className={[
-            'w-full h-[52px] px-4 text-[15px] bg-white outline-none',
-            isPassword ? 'pr-12' : 'pr-4',
-            'placeholder-[#aaa] text-[#111] transition-all border',
-            error
-              ? 'border-red-500'
-              : 'border-[#111] focus:border-[#ccff00] focus:shadow-[0_0_0_3px_rgba(204,255,0,0.25)]',
-            disabled ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : '',
-          ].join(' ')}
-          {...props}
+          disabled={disabled}
+          autoComplete={autoComplete}
+          inputMode={inputMode}
+          maxLength={maxLength}
+          aria-invalid={Boolean(error)}
+          className={`${inputCls} text-sm ${mono ? 'font-mono tracking-wider' : ''}`}
         />
-
         {isPassword && (
           <button
             type="button"
-            onClick={() => setShowPassword(s => !s)}
-            disabled={disabled}
+            onClick={() => setShowPassword((prev) => !prev)}
+            aria-label={showPassword ? 'Sembunyikan sandi' : 'Tampilkan sandi'}
+            className="text-muted-foreground hover:text-foreground cursor-pointer"
             tabIndex={-1}
-            aria-label={showPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-[#888] hover:text-[#111] transition-colors cursor-pointer"
           >
-            {showPassword ? <EyeOff size={19} /> : <Eye size={19} />}
+            {showPassword ? (
+              <EyeOff className="w-4 h-4" />
+            ) : (
+              <Eye className="w-4 h-4" />
+            )}
           </button>
         )}
       </div>
-
-      {error && (
-        <p id={`${name}-error`} className="mt-1.5 text-[12px] text-red-600 font-medium">
-          {error}
-        </p>
+      {resolvedHint && !error && (
+        <span className="block text-[11px] text-muted-foreground mt-1">
+          {resolvedHint}
+        </span>
       )}
-    </div>
+      {error && (
+        <span role="alert" className="block text-xs text-destructive font-medium mt-1">
+          {error}
+        </span>
+      )}
+    </label>
   );
-}
+};
+
+export default InputText;

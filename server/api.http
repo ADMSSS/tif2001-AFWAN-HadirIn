@@ -1,0 +1,66 @@
+@baseUrl = http://localhost:5000
+# Ganti nilai variabel di bawah ini sesuai dengan hasil respon atau data database Anda
+@token = MASUKKAN_TOKEN_JWT_DARI_HASIL_LOGIN
+@attendanceId = MASUKKAN_ID_ABSENSI_DARI_HASIL_CHECKIN
+
+### ==========================================
+### 1. LOGIN (Mendapatkan Token JWT)
+### ==========================================
+# Menguji login untuk COMPANY_ADMIN atau EMPLOYEE menggunakan license_key
+POST {{baseUrl}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "nik": "3518052105060001",
+  "password": "password_anda",
+  "company_license": "LISENSI_PERUSAHAAN_ANDA"
+}
+
+### ==========================================
+### 2. TAMBAH KARYAWAN BARU (Provisioning)
+### ==========================================
+# Hanya bisa dijalankan jika token berasal dari role COMPANY_ADMIN atau SUPER_ADMIN
+POST {{baseUrl}}/api/v1/employees
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "nik": "20260002",
+  "full_name": "Budi Santoso",
+  "initial_password": "password123"
+}
+
+### ==========================================
+### 3. [CREATE] CHECK-IN ABSENSI (Geofencing Max 50m)
+### ==========================================
+# Koordinat lat & long harus berada dalam jarak <= 50 meter dari office_lat & office_long tenant
+POST {{baseUrl}}/api/attendances/checkin
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "lat": -7.599999,
+  "long": 111.900000,
+  "photo_url": "https://hadirin.com"
+}
+
+### ==========================================
+### 4. [READ] AMBIL DATA ABSENSI
+### ==========================================
+# Menampilkan data sesuai hak akses role (EMPLOYEE hanya melihat miliknya sendiri)
+GET {{baseUrl}}/api/attendances
+Authorization: Bearer {{token}}
+
+### ==========================================
+### 5. [UPDATE] CHECK-OUT ABSENSI
+### ==========================================
+# Pastikan variabel @attendanceId di atas sudah diisi dari hasil Check-In
+PUT {{baseUrl}}/api/attendances/checkout/{{attendanceId}}
+Authorization: Bearer {{token}}
+
+### ==========================================
+### 6. [DELETE] HAPUS DATA ABSENSI
+### ==========================================
+# Hanya bisa dijalankan oleh SUPER_ADMIN atau COMPANY_ADMIN
+DELETE {{baseUrl}}/api/attendances/{{attendanceId}}
+Authorization: Bearer {{token}}

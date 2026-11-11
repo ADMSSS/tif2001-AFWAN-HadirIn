@@ -1,0 +1,63 @@
+@baseUrl = http://localhost:5000
+@superAdminToken = MASUKKAN_TOKEN_JWT_SUPER_ADMIN_DI_SINI
+@newTenantId = MASUKKAN_UUID_TENANT_BARU_DARI_LANGKAH_2
+@attendanceId = MASUKKAN_ID_ABSENSI_YANG_AKAN_DIHAPUS
+
+### ==========================================
+### 1. LOGIN SUPER ADMIN
+### ==========================================
+# Super Admin login tanpa memerlukan company_license (atau dikosongkan)
+POST {{baseUrl}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "nik": "999999",
+  "password": "superadmin123"
+}
+
+### ==========================================
+### 2. [TENANT] BUAT PERUSAHAAN / TENANT BARU
+### ==========================================
+# Hanya role SUPER_ADMIN yang diizinkan mendaftarkan instansi/perusahaan baru
+POST {{baseUrl}}/api/v1/tenants
+Content-Type: application/json
+Authorization: Bearer {{superAdminToken}}
+
+{
+  "company_name": "PT Maju Bersama Cabang Surabaya",
+  "license_key": "MAJU-SBY-2026",
+  "max_users": 100,
+  "active_until": "2027-12-31T23:59:59Z",
+  "office_lat": -7.257472,
+  "office_long": 112.752088
+}
+
+### ==========================================
+### 3. [PROVISIONING] BUAT AKUN COMPANY ADMIN
+### ==========================================
+# Super Admin membuatkan akun Admin pertama untuk perusahaan baru di atas
+POST {{baseUrl}}/api/v1/employees
+Content-Type: application/json
+Authorization: Bearer {{superAdminToken}}
+
+{
+  "tenant_id": "{{newTenantId}}",
+  "nik": "200001",
+  "full_name": "Admin Cabang Surabaya",
+  "role": "COMPANY_ADMIN",
+  "initial_password": "adminpassword123"
+}
+
+### ==========================================
+### 4. [READ] LIHAT SEMUA ABSENSI LINTAS TENANT
+### ==========================================
+# Super Admin dapat melihat seluruh data absensi dari semua perusahaan
+GET {{baseUrl}}/api/attendances
+Authorization: Bearer {{superAdminToken}}
+
+### ==========================================
+### 5. [DELETE] HAPUS DATA ABSENSI (GLOBAL)
+### ==========================================
+# Super Admin memiliki hak akses penuh untuk menghapus record absensi mana pun
+DELETE {{baseUrl}}/api/attendances/{{attendanceId}}
+Authorization: Bearer {{superAdminToken}}

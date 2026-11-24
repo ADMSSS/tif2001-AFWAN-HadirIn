@@ -273,8 +273,8 @@ export function EmployeeDashboard({ session, onNavigate }) {
                   Anda belum presensi
                 </h2>
                 <p className="mt-2 text-muted-foreground">
-                  Presensi masuk sudah dibuka. Siapkan lokasi aktif, kode QR
-                  kantor, dan kamera depan.
+                  Presensi masuk sudah dibuka. Siapkan izin lokasi GPS aktif dan
+                  kamera depan.
                 </p>
                 <Btn className="mt-5" onClick={() => onNavigate('presensi')}>
                   <Fingerprint size={18} /> Mulai presensi masuk

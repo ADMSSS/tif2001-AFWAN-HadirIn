@@ -10,7 +10,6 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminKaryawan from './pages/admin/AdminKaryawan';
 import AdminRekap from './pages/admin/AdminRekap';
 import AdminJurnal from './pages/admin/AdminJurnal';
-import AdminLayarQR from './pages/admin/AdminLayarQR';
 import AdminTalenta from './pages/admin/AdminTalenta';
 import AdminPengaturan from './pages/admin/AdminPengaturan';
 import SuperDashboard from './pages/super/SuperDashboard';
@@ -296,7 +295,6 @@ function AppContent() {
           {page === 'karyawan' && <AdminKaryawan session={session} />}
           {page === 'rekap' && <AdminRekap session={session} />}
           {page === 'jurnal' && <AdminJurnal session={session} />}
-          {page === 'qr' && <AdminLayarQR session={session} />}
           {page === 'talenta' && <AdminTalenta session={session} />}
           {page === 'pengaturan' && <AdminPengaturan session={session} />}
         </>

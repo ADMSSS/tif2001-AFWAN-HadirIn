@@ -67,8 +67,9 @@ Dasbor utama karyawan yang adaptif terhadap waktu dan status kerja:
 * **Statistik Bulan Berjalan & Kalender 30 Hari Terakhir:** Menampilkan `% Kehadiran`, `% Tepat Waktu`, `Total Jam`, `Jurnal Disetujui`, serta matriks kalender 30 hari terakhir dan panel informasi perusahaan (`Tempat kerja` & `Bergabung`).
 
 ### C. `EmployeePresensi` & `PresensiFlow` (`client/src/pages/employee/EmployeePresensi.jsx`, `client/src/pages/employee/PresensiFlow.jsx`)
-Modul verifikasi kehadiran dua langkah (*Anti-Spoofing Geofence & WebRTC Camera*) beserta bukti struk digital:
-* **Langkah 1 — Verifikasi Lokasi (Radar Geofence):**
+Modul verifikasi kehadiran dua langkah (*Anti-Spoofing Web Geolocation GPS API & WebRTC Camera*) beserta bukti struk digital:
+* **Langkah 1 — Verifikasi Lokasi (`GpsClientPopup` & Radar Geofence):**
+  * Memanggil **Web Geolocation API (`navigator.geolocation.getCurrentPosition`)** secara langsung sehingga menampilkan pop-up izin lokasi GPS asli browser serta modal **`GpsClientPopup` (`Akses API GPS Client`)** yang memuat telemetri koordinat, akurasi sinyal, dan pemilih mode pengujian (`Dalam Radius`, `Diluar Radius`, `GPS Asli Browser`).
   * Menghitung jarak koordinat GPS pengguna ke titik kantor menggunakan rumus *Haversine* (`client/src/utils/geo.js`).
   * **Status `Di Dalam Radius Kantor` (mis. `11 m` dari batas `50 m`):** Header kartu berwarna hijau limau (`bg-accent`), titik pengguna berada di dalam lingkaran kantor, dan tombol `Mulai Absen Masuk/Pulang` aktif.
   * **Status `Diluar Radius` (mis. `477 m` dari batas `50 m`):** Header kartu berwarna merah (`bg-destructive text-white`), titik oranye `ANDA` berada di luar lingkaran kantor dengan garis putus-putus, kotak peringatan detail jarak, dan tombol presensi dinonaktifkan.
@@ -122,17 +123,12 @@ Verifikasi dan evaluasi jurnal kerja harian karyawan:
 * **Persetujuan Massal (`Bulk Approve`):** Tombol `Setujui semua yang tampil (N)` dengan dialog konfirmasi.
 * **Form Evaluasi Kartu Jurnal:** Tombol `Setujui` dan `Tolak` dengan input catatan evaluasi HRD (wajib minimal 5 karakter saat menolak jurnal).
 
-### E. `AdminLayarQR` (`client/src/pages/admin/AdminLayarQR.jsx`)
-Layar kiosk QR dinamis kantor untuk pencegahan titip absen:
-* **QR Code & Kode 6 Digit Berputar (15 Detik):** Matriks SVG QR deterministik berbasis `qrSecret` tenant dan jendela waktu 15 detik, dilengkapi cincin progres hitung mundur dan mode `Layar penuh` (*Fullscreen API*).
-* **Panel Kehadiran Hari Ini & Panduan 3 Lapis Keamanan:** Menampilkan jumlah karyawan hadir hari ini serta penjelasan mekanisme *rolling token*.
-
-### F. `AdminTalenta` (`client/src/pages/admin/AdminTalenta.jsx`)
+### E. `AdminTalenta` (`client/src/pages/admin/AdminTalenta.jsx`)
 Pencarian rekam jejak kandidat lintas perusahaan sesuai UU PDP:
 * **Stepper 3 Langkah:** `1. Cari NIK` -> `2. Izin karyawan` -> `3. Lihat performa`.
 * **Identitas Tersamar & Opt-In Consent:** Menampilkan nama tersamar (`B••• S••••••`) sebelum kandidat menyetujui permintaan akses, dan membuka *timeline* kehadiran lintas perusahaan setelah berstatus `APPROVED`.
 
-### G. `AdminPengaturan` (`client/src/pages/admin/AdminPengaturan.jsx`)
+### F. `AdminPengaturan` (`client/src/pages/admin/AdminPengaturan.jsx`)
 Pengaturan titik kantor, geofence, jaringan, dan jam kerja:
 * **Lokasi & Visualisasi Radius Geofence (`RadiusViz`):** Input alamat, koordinat *latitude/longitude*, tombol geolokasi browser `Gunakan lokasi saya saat ini`, dan *slider* radius `20 m`–`200 m` dengan diagram skala interaktif.
 * **Jaringan & Jam Kerja:** Pengaturan awalan IP Wi-Fi kantor (`ipPrefix`), jam masuk (`workStart`), jam pulang (`workEnd`), dan toleransi keterlambatan (`graceMin`).

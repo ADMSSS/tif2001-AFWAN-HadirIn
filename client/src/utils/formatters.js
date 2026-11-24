@@ -224,35 +224,6 @@ export function summarize(atts, journals, from, to) {
   };
 }
 
-// ─── Rolling QR Code Helpers (1:1 dengan figma desain/src/app/lib/rolling.ts) ───
-export const QR_WINDOW_SEC = 15;
-
-function mixHash(str) {
-  let h = 2166136261;
-  for (let i = 0; i < str.length; i += 1) {
-    h ^= str.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  h ^= h >>> 15;
-  h = Math.imul(h, 2246822507);
-  h ^= h >>> 13;
-  return h >>> 0;
-}
-
-export const windowIndex = (ms) => Math.floor(ms / (QR_WINDOW_SEC * 1000));
-
-export function rollingCode(secret, win) {
-  return String(mixHash(`${secret}:${win}`) % 1000000).padStart(6, '0');
-}
-
-export function secondsLeft(ms) {
-  return QR_WINDOW_SEC - Math.floor((ms % (QR_WINDOW_SEC * 1000)) / 1000);
-}
-
-export function qrPayload(tenantCode, code) {
-  return `hadirin:${tenantCode}:${code}`;
-}
-
 export const StoreContext = createContext(null);
 
 export function useStore() {

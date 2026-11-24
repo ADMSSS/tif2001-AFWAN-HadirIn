@@ -6,7 +6,6 @@ import {
   KeyRound,
   Loader2,
   MapPin,
-  QrCode,
   RotateCcw,
   Save,
 } from 'lucide-react';
@@ -168,19 +167,14 @@ export function AdminPengaturan({ session }) {
 
   const rules = [
     {
-      icon: QrCode,
-      t: 'Lapis 1 · QR berputar',
-      d: 'Kode 6 digit berganti tiap 15 detik; kode sebelumnya masih berlaku 1 jendela.',
+      icon: MapPin,
+      t: 'Lapis 1 · Lokasi GPS & jaringan',
+      d: `Jarak Haversine ≤ ${o.radius} m dari titik kantor via Web Geolocation API, akurasi GPS ≤ 100 m, dan IP publik berawalan ${o.ipPrefix}`,
     },
     {
       icon: Camera,
       t: 'Lapis 2 · Foto langsung',
-      d: 'Hanya dari kamera, tanpa unggahan galeri. Dikompres maksimal 600×600 piksel.',
-    },
-    {
-      icon: MapPin,
-      t: 'Lapis 3 · Lokasi & jaringan',
-      d: `Jarak Haversine ≤ ${o.radius} m dari kantor, akurasi GPS ≤ 100 m, dan IP publik berawalan ${o.ipPrefix}`,
+      d: 'Hanya dari kamera perangkat, tanpa unggahan galeri. Dikompres maksimal 600×600 piksel.',
     },
   ];
 

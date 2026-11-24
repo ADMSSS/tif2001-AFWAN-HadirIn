@@ -4,6 +4,7 @@ import {
   CameraOff,
   Check,
   Clock,
+  Crosshair,
   Loader2,
   MapPin,
   Navigation,
@@ -14,7 +15,7 @@ import {
 } from 'lucide-react';
 import { fmtClock, fmtDate, fmtTime, useClock, useStore } from '../../utils/formatters';
 import { validateLocation } from '../../utils/geo';
-import { Btn } from '../../components/ui';
+import { Btn, Pill } from '../../components/ui';
 
 const MAX_PHOTO = 640;
 
@@ -324,25 +325,209 @@ function Radar({ tenant, reading, distance, ok }) {
   );
 }
 
+function GpsClientPopup({
+  tenant,
+  loc,
+  gpsMode,
+  onSelectMode,
+  onRefreshGps,
+  onClose,
+}) {
+  const { reading, result } = loc;
+  const isGranted = reading?.apiStatus === 'granted';
+  const inside = loc.phase === 'done' && Boolean(result?.ok);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="gps-modal-title"
+      className="fixed inset-0 z-50 bg-foreground/80 backdrop-blur-sm grid place-items-center p-4"
+    >
+      <div className="w-full max-w-md bg-card border-2 border-foreground rounded-md shadow-[8px_8px_0_0_#c9f23c] overflow-hidden">
+        <div className="px-4 py-2.5 bg-foreground text-background flex items-center justify-between">
+          <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-accent">
+            Web Geolocation API · Client GPS
+          </span>
+          <span className="font-mono text-[10px] opacity-80">
+            navigator.geolocation
+          </span>
+        </div>
+
+        <div className="p-5 space-y-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="w-11 h-11 rounded-md bg-accent border-2 border-foreground grid place-items-center shrink-0">
+                <Crosshair className="w-5 h-5" />
+              </div>
+              <div>
+                <h2
+                  id="gps-modal-title"
+                  className="font-display text-2xl font-extrabold tracking-tight leading-tight"
+                >
+                  Akses API GPS Client
+                </h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Membaca koordinat GPS perangkat melalui browser untuk
+                  verifikasi radius geofence kantor.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Tutup pop-up GPS"
+              className="p-1.5 rounded-md border-2 border-foreground hover:bg-secondary cursor-pointer"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          {/* Panel Telemetri API GPS */}
+          <div className="border-2 border-foreground rounded-md bg-secondary p-3.5 space-y-2.5 text-xs">
+            <div className="flex items-center justify-between gap-2 pb-2 border-b border-foreground/20">
+              <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+                Status Browser GPS API
+              </span>
+              {loc.phase === 'loading' ? (
+                <Pill tone="mute">
+                  <Loader2 size={12} className="animate-spin" /> Meminta izin
+                  GPS…
+                </Pill>
+              ) : isGranted ? (
+                <Pill tone="ok">Izin GPS Aktif</Pill>
+              ) : (
+                <Pill tone="warn">Fallback Perangkat</Pill>
+              )}
+            </div>
+
+            {loc.phase === 'loading' ? (
+              <div className="py-5 text-center space-y-2">
+                <Loader2 className="animate-spin mx-auto" size={24} />
+                <p className="font-mono text-[11px] uppercase tracking-wider">
+                  Memanggil navigator.geolocation.getCurrentPosition()…
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  Klik <b>Allow / Izinkan</b> jika pop-up izin lokasi muncul di
+                  browser Anda.
+                </p>
+              </div>
+            ) : reading && result ? (
+              <dl className="grid grid-cols-2 gap-2.5 font-mono text-[11px]">
+                <div>
+                  <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Latitude, Longitude
+                  </dt>
+                  <dd className="font-bold tabular-nums mt-0.5">
+                    {reading.lat.toFixed(5)}, {reading.lng.toFixed(5)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Akurasi &amp; Jarak
+                  </dt>
+                  <dd className="font-bold tabular-nums mt-0.5">
+                    ±{Math.round(reading.accuracy)} m ·{' '}
+                    {Math.round(result.distance)} m
+                  </dd>
+                </div>
+                <div className="col-span-2 pt-1.5 border-t border-foreground/15 flex items-center justify-between">
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Hasil Geofence ({tenant.office.radius} m)
+                  </span>
+                  <span
+                    className={`font-bold ${
+                      inside ? 'text-foreground' : 'text-destructive'
+                    }`}
+                  >
+                    {inside ? '✓ DI DALAM RADIUS' : '✕ DILUAR RADIUS'}
+                  </span>
+                </div>
+              </dl>
+            ) : (
+              <p className="text-destructive font-bold">
+                Gagal membaca sinyal GPS perangkat.
+              </p>
+            )}
+          </div>
+
+          {/* Pemilih Mode Pembacaan GPS Client */}
+          <div className="space-y-1.5">
+            <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+              Mode Koordinat API GPS Client
+            </p>
+            <div className="grid grid-cols-3 gap-1.5">
+              {[
+                { id: 'inside', label: 'Dalam Radius (11 m)' },
+                { id: 'outside', label: 'Diluar Radius (477 m)' },
+                { id: 'real', label: 'GPS Asli Browser' },
+              ].map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => onSelectMode(m.id)}
+                  className={`font-mono text-[10px] uppercase tracking-wider px-2 py-2 rounded-md border-2 border-foreground transition-colors cursor-pointer ${
+                    gpsMode === m.id
+                      ? 'bg-foreground text-accent font-bold'
+                      : 'bg-card hover:bg-secondary'
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-2 pt-1">
+            <Btn
+              variant="ghost"
+              size="sm"
+              className="sm:flex-1"
+              onClick={onRefreshGps}
+              disabled={loc.phase === 'loading'}
+            >
+              <RefreshCw size={14} /> Panggil Ulang API GPS
+            </Btn>
+            <Btn
+              variant="accent"
+              size="sm"
+              className="sm:flex-1"
+              onClick={onClose}
+              disabled={loc.phase === 'loading'}
+            >
+              <Check size={15} /> Gunakan Lokasi GPS
+            </Btn>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function AttendanceFlow({ mode, tenant, userId, onDone, needJournal, onGoJournal }) {
-  const { readLocation, toggleLocationScenario, currentIp, checkIn, checkOut } = useStore();
+  const { readLocation, currentIp, checkIn, checkOut } = useStore();
   const { now } = useClock();
   const [loc, setLoc] = useState({ phase: 'loading' });
+  const [gpsMode, setGpsMode] = useState('inside');
+  const [showGpsPopup, setShowGpsPopup] = useState(true);
   const [locAttempt, setLocAttempt] = useState(0);
   const [camera, setCamera] = useState(false);
   const [sending, setSending] = useState(false);
 
-  const run = useCallback((switchScenario = false) => {
-    if (switchScenario && toggleLocationScenario) {
-      toggleLocationScenario();
+  const run = useCallback((nextMode, openPopup = false) => {
+    if (nextMode) {
+      setGpsMode(nextMode);
+    }
+    if (openPopup) {
+      setShowGpsPopup(true);
     }
     setLoc({ phase: 'loading' });
     setLocAttempt((a) => a + 1);
-  }, [toggleLocationScenario]);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
-    readLocation(tenant)
+    readLocation(tenant, gpsMode)
       .then((reading) => {
         if (cancelled) return;
         const ip = currentIp(tenant);
@@ -364,7 +549,7 @@ export function AttendanceFlow({ mode, tenant, userId, onDone, needJournal, onGo
     return () => {
       cancelled = true;
     };
-  }, [locAttempt, readLocation, currentIp, tenant]);
+  }, [locAttempt, gpsMode, readLocation, currentIp, tenant]);
 
   const { result, reading, ip } = loc;
   const inside = loc.phase === 'done' && Boolean(result?.ok);
@@ -578,12 +763,23 @@ export function AttendanceFlow({ mode, tenant, userId, onDone, needJournal, onGo
           variant="ghost"
           size="sm"
           className="w-full"
-          onClick={() => run(true)}
+          onClick={() => run(undefined, true)}
           disabled={loc.phase === 'loading'}
         >
-          <RefreshCw size={14} /> Periksa ulang lokasi
+          <Crosshair size={14} /> Buka Pop-up API GPS / Periksa Ulang Lokasi
         </Btn>
       </div>
+
+      {showGpsPopup && (
+        <GpsClientPopup
+          tenant={tenant}
+          loc={loc}
+          gpsMode={gpsMode}
+          onSelectMode={(nextMode) => run(nextMode, true)}
+          onRefreshGps={() => run(gpsMode, true)}
+          onClose={() => setShowGpsPopup(false)}
+        />
+      )}
 
       {camera && (
         <CameraScreen

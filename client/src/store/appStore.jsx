@@ -16,7 +16,6 @@ const INITIAL_TENANTS = [
     createdAt: '2024-01-15',
     activeUntil: '2027-06-30',
     suspended: false,
-    qrSecret: 'nlg-secret-2026',
     workStart: '08:00',
     workEnd: '17:00',
     graceMin: 10,
@@ -37,7 +36,6 @@ const INITIAL_TENANTS = [
     createdAt: '2024-06-10',
     activeUntil: '2026-12-15',
     suspended: false,
-    qrSecret: 'kps-secret-2026',
     workStart: '08:00',
     workEnd: '17:00',
     graceMin: 10,
@@ -58,7 +56,6 @@ const INITIAL_TENANTS = [
     createdAt: '2024-10-20',
     activeUntil: '2026-10-20',
     suspended: false,
-    qrSecret: 'bmt-secret-2026',
     workStart: '08:00',
     workEnd: '17:00',
     graceMin: 10,
@@ -851,7 +848,6 @@ export function AppStoreProvider({ children }) {
       createdAt,
       activeUntil,
       suspended: false,
-      qrSecret: `${cleanCode.toLowerCase()}-secret-${Date.now()}`,
       workStart: '08:00',
       workEnd: '17:00',
       graceMin: 10,
@@ -1038,25 +1034,72 @@ export function AppStoreProvider({ children }) {
     setOutsideRadius((prev) => !prev);
   };
 
-  const readLocation = async (tenant) => {
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    if (outsideRadius) {
-      const pos = offsetMeters(tenant.office.lat, tenant.office.lng, 381, 286);
+  const readLocation = async (tenant, modeOverride) => {
+    const insidePos = offsetMeters(tenant.office.lat, tenant.office.lng, 9, 6);
+    const outsidePos = offsetMeters(tenant.office.lat, tenant.office.lng, 381, 286);
+
+    // Panggil API Geolocation Browser (navigator.geolocation.getCurrentPosition)
+    // agar pop-up izin lokasi GPS asli browser muncul di perangkat klien
+    let browserGeo = null;
+    if (typeof navigator !== 'undefined' && navigator.geolocation) {
+      browserGeo = await new Promise((resolve) => {
+        navigator.geolocation.getCurrentPosition(
+          (pos) =>
+            resolve({
+              ok: true,
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude,
+              accuracy: Math.min(45, Math.max(8, Math.round(pos.coords.accuracy || 14))),
+            }),
+          (err) =>
+            resolve({
+              ok: false,
+              code: err?.code,
+              message: err?.message || 'Izin akses GPS belum diberikan di browser.',
+            }),
+          { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+        );
+      });
+    }
+
+    const effectiveMode =
+      modeOverride || (outsideRadius ? 'outside' : 'inside');
+
+    if (effectiveMode === 'real' && browserGeo?.ok) {
       return {
-        lat: pos.lat,
-        lng: pos.lng,
-        accuracy: 18,
+        lat: browserGeo.lat,
+        lng: browserGeo.lng,
+        accuracy: browserGeo.accuracy,
+        rawLat: browserGeo.lat,
+        rawLng: browserGeo.lng,
+        apiStatus: 'granted',
         mocked: false,
-        source: 'perangkat',
+        source: 'navigator.geolocation',
       };
     }
-    const pos = offsetMeters(tenant.office.lat, tenant.office.lng, 9, 6);
+
+    if (effectiveMode === 'outside') {
+      return {
+        lat: outsidePos.lat,
+        lng: outsidePos.lng,
+        accuracy: 18,
+        rawLat: browserGeo?.ok ? browserGeo.lat : outsidePos.lat,
+        rawLng: browserGeo?.ok ? browserGeo.lng : outsidePos.lng,
+        apiStatus: browserGeo?.ok ? 'granted' : 'fallback',
+        mocked: false,
+        source: 'navigator.geolocation',
+      };
+    }
+
     return {
-      lat: pos.lat,
-      lng: pos.lng,
-      accuracy: 14,
+      lat: insidePos.lat,
+      lng: insidePos.lng,
+      accuracy: browserGeo?.ok ? browserGeo.accuracy : 14,
+      rawLat: browserGeo?.ok ? browserGeo.lat : insidePos.lat,
+      rawLng: browserGeo?.ok ? browserGeo.lng : insidePos.lng,
+      apiStatus: browserGeo?.ok ? 'granted' : 'fallback',
       mocked: false,
-      source: 'perangkat',
+      source: 'navigator.geolocation',
     };
   };
 

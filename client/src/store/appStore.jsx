@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { StoreContext, dateKey, isWeekendDate, summarize } from '../utils/formatters';
-import { offsetMeters } from '../utils/geo';
 import { attendanceService, journalService } from '../services/api';
 
 // Jam dikunci ke waktu Real-Time perangkat secara permanen
@@ -573,7 +572,26 @@ export function AppStoreProvider({ children }) {
   }, []);
 
   const [baseDate] = useState(() => new Date());
-  const [tenants, setTenants] = useState(INITIAL_TENANTS);
+  const [tenants, setTenants] = useState(() => {
+    try {
+      const saved = localStorage.getItem('hadirin_tenants_v2');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {
+      // Gunakan INITIAL_TENANTS jika localStorage kosong/tidak valid
+    }
+    return INITIAL_TENANTS;
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('hadirin_tenants_v2', JSON.stringify(tenants));
+    } catch {
+      // Abaikan jika storage penuh
+    }
+  }, [tenants]);
   const [users, setUsers] = useState(INITIAL_USERS);
   const [historyAttendances] = useState(() =>
     buildInitialAttendances(baseDate)
@@ -1022,61 +1040,33 @@ export function AppStoreProvider({ children }) {
     };
   };
 
-  const readLocation = async (tenant) => {
-    const insidePos = offsetMeters(tenant.office.lat, tenant.office.lng, 9, 6);
-
-    // Panggil API Geolocation Browser (navigator.geolocation.getCurrentPosition)
-    let browserGeo = null;
-    if (typeof navigator !== 'undefined' && navigator.geolocation) {
-      browserGeo = await new Promise((resolve) => {
-        navigator.geolocation.getCurrentPosition(
-          (pos) =>
-            resolve({
-              ok: true,
-              lat: pos.coords.latitude,
-              lng: pos.coords.longitude,
-              accuracy: Math.min(
-                45,
-                Math.max(8, Math.round(pos.coords.accuracy || 14))
-              ),
-            }),
-          (err) =>
-            resolve({
-              ok: false,
-              code: err?.code,
-              message:
-                err?.message || 'Izin akses GPS belum diberikan di browser.',
-            }),
-          { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
-        );
-      });
+  const readLocation = async () => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      throw new Error('Browser perangkat ini tidak mendukung Web Geolocation API.');
     }
 
-    // Jika admin sudah menyelaraskan titik kantor ke lokasi GPS perangkat saat ini (jarak <= 2 km),
-    // gunakan koordinat GPS asli dari browser secara langsung
-    if (browserGeo?.ok) {
-      const dLat = Math.abs(browserGeo.lat - tenant.office.lat);
-      const dLng = Math.abs(browserGeo.lng - tenant.office.lng);
-      if (dLat < 0.02 && dLng < 0.02) {
-        return {
-          lat: browserGeo.lat,
-          lng: browserGeo.lng,
-          accuracy: browserGeo.accuracy,
-          apiStatus: 'granted',
-          mocked: false,
-          source: 'navigator.geolocation',
-        };
-      }
-    }
-
-    return {
-      lat: insidePos.lat,
-      lng: insidePos.lng,
-      accuracy: browserGeo?.ok ? browserGeo.accuracy : 14,
-      apiStatus: browserGeo?.ok ? 'granted' : 'fallback',
-      mocked: false,
-      source: 'navigator.geolocation',
-    };
+    return new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) =>
+          resolve({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            accuracy: Math.max(1, Math.round(pos.coords.accuracy || 15)),
+            apiStatus: 'granted',
+            mocked: false,
+            source: 'navigator.geolocation',
+          }),
+        (err) =>
+          reject(
+            new Error(
+              err?.code === 1
+                ? 'Izin lokasi GPS ditolak di browser. Aktifkan izin lokasi untuk situs ini.'
+                : 'Gagal membaca sinyal GPS perangkat. Pastikan layanan lokasi aktif.'
+            )
+          ),
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    });
   };
 
   const canCheckIn = (userId) => {

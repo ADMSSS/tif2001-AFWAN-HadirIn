@@ -1,0 +1,31 @@
+name: Web & PWA Continuous Deployment
+
+on:
+  push:
+    branches:
+      - main # Otomatis berjalan setiap kali ada PR di-merge ke main
+
+jobs:
+  deploy-backend:
+    name: Trigger Cloud Backend Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Render / Koyeb Deploy Hook
+        run: |
+          if [ -n "${{ secrets.RENDER_DEPLOY_HOOK }}" ]; then
+            curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
+          fi
+
+  verify-web-pwa-build:
+    name: Verify Web / PWA Production Build & Service Worker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install & Build Web/PWA Bundle
+        run: |
+          cd client
+          npm ci
+          npm run build

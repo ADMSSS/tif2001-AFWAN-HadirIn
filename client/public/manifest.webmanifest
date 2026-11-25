@@ -1,0 +1,17 @@
+{
+  "name": "HadirIn — Platform Presensi & Jurnal Kerja B2B",
+  "short_name": "HadirIn",
+  "description": "Platform Multi-Tenant B2B Presensi Geofence GPS, Kamera WebRTC, dan Jurnal Kerja Harian",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#efece1",
+  "theme_color": "#c9f23c",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

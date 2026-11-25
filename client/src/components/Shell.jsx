@@ -43,7 +43,7 @@ const ROLE_LABEL = {
 };
 
 export function Shell({ session, page, onNavigate, onLogout, children }) {
-  const { now, simulated, cycleClockMode } = useClock();
+  const { now } = useClock();
   const { tenants } = useStore();
   const tenant = tenants.find((t) => t.id === session.tenantId);
   const nav = NAV[session.role] || NAV.karyawan;
@@ -140,19 +140,12 @@ export function Shell({ session, page, onNavigate, onLogout, children }) {
             </p>
           )}
           <div className="ml-auto flex items-center gap-3">
-            <button
-              type="button"
-              onClick={cycleClockMode}
-              title="Klik untuk beralih simulasi waktu (Sore 15:25 / Sore Pulang 17:01 / Pagi 07:45)"
-              className={`font-mono text-xl font-medium px-3 py-1 rounded-md border-2 border-foreground tabular-nums cursor-pointer transition-colors ${
-                simulated
-                  ? 'bg-destructive text-destructive-foreground'
-                  : 'bg-accent text-foreground'
-              }`}
+            <div
+              className="font-mono text-xl font-medium px-3 py-1 rounded-md border-2 border-foreground tabular-nums bg-accent text-foreground"
               aria-label="Jam saat ini"
             >
               {fmtClock(now)}
-            </button>
+            </div>
             <button
               type="button"
               onClick={onLogout}

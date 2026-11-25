@@ -18,9 +18,8 @@ export function offsetMeters(lat, lng, northM, eastM) {
   };
 }
 
-export function validateLocation(office, reading, ip) {
+export function validateLocation(office, reading) {
   const distance = haversine(office.lat, office.lng, reading.lat, reading.lng);
-  const ipPrefix = office.ipPrefix || '103.144.12.';
   const checks = [
     {
       id: 'mock',
@@ -28,7 +27,7 @@ export function validateLocation(office, reading, ip) {
       ok: !reading.mocked,
       detail: reading.mocked
         ? 'Terindikasi lokasi palsu (akurasi tidak wajar / mock provider).'
-        : 'Sinyal lokasi terlihat asli.',
+        : 'Sinyal lokasi GPS perangkat terverifikasi asli.',
     },
     {
       id: 'akurasi',
@@ -41,12 +40,6 @@ export function validateLocation(office, reading, ip) {
       label: 'Geofence kantor',
       ok: distance <= office.radius,
       detail: `${Math.round(distance)} m dari titik kantor (batas ${office.radius} m)`,
-    },
-    {
-      id: 'ip',
-      label: 'Subnet IP kantor',
-      ok: ip.startsWith(ipPrefix),
-      detail: `IP ${ip} · subnet kantor ${ipPrefix}x`,
     },
   ];
   return { checks, distance, ok: checks.every((c) => c.ok) };

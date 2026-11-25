@@ -62,7 +62,6 @@ export function AdminPengaturan({ session }) {
     lat: String(tenant.office.lat),
     lng: String(tenant.office.lng),
     radius: tenant.office.radius,
-    ipPrefix: tenant.office.ipPrefix,
     workStart: tenant.workStart,
     workEnd: tenant.workEnd,
     graceMin: String(tenant.graceMin),
@@ -86,8 +85,6 @@ export function AdminPengaturan({ session }) {
     errors.lat = 'Latitude harus angka antara -90 dan 90.';
   if (!(lng >= -180 && lng <= 180))
     errors.lng = 'Longitude harus angka antara -180 dan 180.';
-  if (!/^\d{1,3}(\.\d{1,3}){0,3}\.?$/.test(f.ipPrefix.trim()))
-    errors.ipPrefix = 'Format prefiks IP, contoh 103.28.14.';
   if (!f.workStart) errors.workStart = 'Wajib diisi.';
   if (!f.workEnd || f.workEnd <= f.workStart)
     errors.workEnd = 'Jam pulang harus setelah jam masuk.';
@@ -102,8 +99,6 @@ export function AdminPengaturan({ session }) {
     changes.push('Koordinat kantor diperbarui');
   if (f.radius !== o.radius)
     changes.push(`Radius geofence diubah ${o.radius} m → ${f.radius} m`);
-  if (f.ipPrefix.trim() !== o.ipPrefix)
-    changes.push(`Prefiks IP diubah ${o.ipPrefix} → ${f.ipPrefix.trim()}`);
   if (f.workStart !== tenant.workStart)
     changes.push(`Jam masuk diubah ${tenant.workStart} → ${f.workStart}`);
   if (f.workEnd !== tenant.workEnd)
@@ -122,7 +117,6 @@ export function AdminPengaturan({ session }) {
           lat,
           lng,
           radius: f.radius,
-          ipPrefix: f.ipPrefix.trim(),
         },
         workStart: f.workStart,
         workEnd: f.workEnd,
@@ -168,13 +162,13 @@ export function AdminPengaturan({ session }) {
   const rules = [
     {
       icon: MapPin,
-      t: 'Lapis 1 · Lokasi GPS & jaringan',
-      d: `Jarak Haversine ≤ ${o.radius} m dari titik kantor via Web Geolocation API, akurasi GPS ≤ 100 m, dan IP publik berawalan ${o.ipPrefix}`,
+      t: 'Lapis 1 · Lokasi GPS Geofence',
+      d: `Jarak Haversine ≤ ${o.radius} m dari titik kantor melalui Web Geolocation API (navigator.geolocation) dengan akurasi sinyal GPS ≤ 100 m.`,
     },
     {
       icon: Camera,
-      t: 'Lapis 2 · Foto langsung',
-      d: 'Hanya dari kamera perangkat, tanpa unggahan galeri. Dikompres maksimal 600×600 piksel.',
+      t: 'Lapis 2 · Foto kamera langsung',
+      d: 'Hanya dari kamera perangkat (WebRTC), tanpa unggahan galeri. Ukuran berkas maksimal 2 MB (JPEG/PNG/WebP).',
     },
   ];
 
@@ -200,7 +194,7 @@ export function AdminPengaturan({ session }) {
             save();
           }}
         >
-          <Panel title="Lokasi & geofence" kicker="Lapis 3">
+          <Panel title="Lokasi & geofence" kicker="Lapis 1">
             <div className="space-y-4">
               <Field label="Alamat kantor">
                 <input
@@ -287,21 +281,8 @@ export function AdminPengaturan({ session }) {
             </div>
           </Panel>
 
-          <Panel title="Jaringan & jam kerja" kicker="Aturan harian">
+          <Panel title="Jam kerja operasional" kicker="Aturan harian">
             <div className="grid sm:grid-cols-2 gap-4">
-              <div className="sm:col-span-2">
-                <Field
-                  label="Prefiks IP / subnet publik kantor"
-                  hint="IP publik yang dipakai Wi-Fi kantor, diakhiri titik. Contoh: 103.28.14."
-                >
-                  <input
-                    className={`${inputCls} font-mono`}
-                    value={f.ipPrefix}
-                    onChange={(e) => set('ipPrefix', e.target.value)}
-                  />
-                </Field>
-                {err('ipPrefix')}
-              </div>
               <div>
                 <Field label="Jam masuk">
                   <input
@@ -395,7 +376,7 @@ export function AdminPengaturan({ session }) {
 
           <Panel
             title="Aturan presensi aktif"
-            kicker="3 lapis keamanan"
+            kicker="2 lapis keamanan"
             tone="dark"
           >
             <ul className="space-y-4">

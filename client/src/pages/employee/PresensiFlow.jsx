@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { fmtClock, fmtDate, fmtTime, useClock, useStore } from '../../utils/formatters';
 import { validateLocation } from '../../utils/geo';
+import { validatePhotoDataUrl } from '../../services/api';
 import { Btn, Pill } from '../../components/ui';
 
 const MAX_PHOTO = 640;
@@ -72,32 +73,13 @@ function useFrontCamera(attempt) {
   return { videoRef, status, error, setStatus };
 }
 
-function fallbackPhoto() {
-  const c = document.createElement('canvas');
-  c.width = 480;
-  c.height = 480;
-  const g = c.getContext('2d');
-  g.fillStyle = '#e9e5d3';
-  g.fillRect(0, 0, 480, 480);
-  g.fillStyle = '#122017';
-  g.beginPath();
-  g.arc(240, 190, 80, 0, Math.PI * 2);
-  g.fill();
-  g.beginPath();
-  g.ellipse(240, 460, 150, 130, 0, Math.PI, 0);
-  g.fill();
-  g.fillStyle = '#c9f23c';
-  g.font = 'bold 44px monospace';
-  g.textAlign = 'center';
-  g.fillText('FOTO', 240, 215);
-  return c.toDataURL('image/jpeg', 0.7);
-}
-
 function CameraScreen({ onCancel, onShot, sending }) {
   const [attempt, setAttempt] = useState(0);
+  const [photoErr, setPhotoErr] = useState('');
   const { videoRef, status, error, setStatus } = useFrontCamera(attempt);
 
   const retryCamera = () => {
+    setPhotoErr('');
     if (navigator.mediaDevices?.getUserMedia) {
       setStatus('starting');
     }
@@ -119,7 +101,14 @@ function CameraScreen({ onCancel, onShot, sending }) {
     ctx.translate(c.width, 0);
     ctx.scale(-1, 1);
     ctx.drawImage(v, 0, 0, c.width, c.height);
-    onShot(c.toDataURL('image/jpeg', 0.75));
+    const dataUrl = c.toDataURL('image/jpeg', 0.75);
+    const validation = validatePhotoDataUrl(dataUrl);
+    if (!validation.ok) {
+      setPhotoErr(validation.error);
+      return;
+    }
+    setPhotoErr('');
+    onShot(dataUrl);
   };
 
   return (
@@ -179,20 +168,9 @@ function CameraScreen({ onCancel, onShot, sending }) {
               <CameraOff className="mx-auto" size={28} />
               <p className="mt-2 text-sm">{error}</p>
               <div className="mt-4 flex flex-col gap-2">
-                <Btn
-                  variant="accent"
-                  size="sm"
-                  onClick={retryCamera}
-                >
+                <Btn variant="accent" size="sm" onClick={retryCamera}>
                   <RefreshCw size={14} /> Coba lagi
                 </Btn>
-                <button
-                  type="button"
-                  onClick={() => onShot(fallbackPhoto())}
-                  className="text-sm underline underline-offset-4 text-accent font-bold py-1 cursor-pointer"
-                >
-                  Pakai foto contoh
-                </button>
               </div>
             </div>
           )}
@@ -201,9 +179,17 @@ function CameraScreen({ onCancel, onShot, sending }) {
       {status === 'ready' && <div className="flex-1" />}
 
       <footer className="relative p-4 pb-6 bg-foreground border-t-2 border-background/20">
+        {photoErr && (
+          <p
+            role="alert"
+            className="text-center text-xs text-destructive-foreground bg-destructive px-3 py-1.5 rounded mb-2 font-bold"
+          >
+            {photoErr}
+          </p>
+        )}
         <p className="text-center text-sm mb-3 flex items-center justify-center gap-2">
           <ShieldCheck size={16} className="text-accent shrink-0" /> Posisikan
-          wajah di dalam frame untuk verifikasi HRD
+          wajah di dalam frame untuk verifikasi HRD (Maks. 2 MB · JPEG/PNG/WebP)
         </p>
         <button
           type="button"
@@ -328,8 +314,6 @@ function Radar({ tenant, reading, distance, ok }) {
 function GpsClientPopup({
   tenant,
   loc,
-  gpsMode,
-  onSelectMode,
   onRefreshGps,
   onClose,
 }) {
@@ -368,8 +352,8 @@ function GpsClientPopup({
                   Akses API GPS Client
                 </h2>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Membaca koordinat GPS perangkat melalui browser untuk
-                  verifikasi radius geofence kantor.
+                  Memverifikasi koordinat GPS perangkat Anda secara langsung
+                  terhadap titik kantor {tenant.name}.
                 </p>
               </div>
             </div>
@@ -383,7 +367,6 @@ function GpsClientPopup({
             </button>
           </div>
 
-          {/* Panel Telemetri API GPS */}
           <div className="border-2 border-foreground rounded-md bg-secondary p-3.5 space-y-2.5 text-xs">
             <div className="flex items-center justify-between gap-2 pb-2 border-b border-foreground/20">
               <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
@@ -395,9 +378,9 @@ function GpsClientPopup({
                   GPS…
                 </Pill>
               ) : isGranted ? (
-                <Pill tone="ok">Izin GPS Aktif</Pill>
+                <Pill tone="ok">Terhubung · GPS Aktif</Pill>
               ) : (
-                <Pill tone="warn">Fallback Perangkat</Pill>
+                <Pill tone="warn">Menunggu Izin GPS Browser</Pill>
               )}
             </div>
 
@@ -408,8 +391,7 @@ function GpsClientPopup({
                   Memanggil navigator.geolocation.getCurrentPosition()…
                 </p>
                 <p className="text-[11px] text-muted-foreground">
-                  Klik <b>Allow / Izinkan</b> jika pop-up izin lokasi muncul di
-                  browser Anda.
+                  Klik <b>Allow / Izinkan</b> pada pop-up lokasi browser Anda.
                 </p>
               </div>
             ) : reading && result ? (
@@ -433,49 +415,22 @@ function GpsClientPopup({
                 </div>
                 <div className="col-span-2 pt-1.5 border-t border-foreground/15 flex items-center justify-between">
                   <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                    Hasil Geofence ({tenant.office.radius} m)
+                    Radius Geofence ({tenant.office.radius} m)
                   </span>
                   <span
                     className={`font-bold ${
                       inside ? 'text-foreground' : 'text-destructive'
                     }`}
                   >
-                    {inside ? '✓ DI DALAM RADIUS' : '✕ DILUAR RADIUS'}
+                    {inside ? '✓ DI DALAM RADIUS KANTOR' : '✕ DILUAR RADIUS KANTOR'}
                   </span>
                 </div>
               </dl>
             ) : (
               <p className="text-destructive font-bold">
-                Gagal membaca sinyal GPS perangkat.
+                Izin lokasi GPS belum diaktifkan pada browser perangkat ini.
               </p>
             )}
-          </div>
-
-          {/* Pemilih Mode Pembacaan GPS Client */}
-          <div className="space-y-1.5">
-            <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-              Mode Koordinat API GPS Client
-            </p>
-            <div className="grid grid-cols-3 gap-1.5">
-              {[
-                { id: 'inside', label: 'Dalam Radius (11 m)' },
-                { id: 'outside', label: 'Diluar Radius (477 m)' },
-                { id: 'real', label: 'GPS Asli Browser' },
-              ].map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => onSelectMode(m.id)}
-                  className={`font-mono text-[10px] uppercase tracking-wider px-2 py-2 rounded-md border-2 border-foreground transition-colors cursor-pointer ${
-                    gpsMode === m.id
-                      ? 'bg-foreground text-accent font-bold'
-                      : 'bg-card hover:bg-secondary'
-                  }`}
-                >
-                  {m.label}
-                </button>
-              ))}
-            </div>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-2 pt-1">
@@ -486,7 +441,7 @@ function GpsClientPopup({
               onClick={onRefreshGps}
               disabled={loc.phase === 'loading'}
             >
-              <RefreshCw size={14} /> Panggil Ulang API GPS
+              <RefreshCw size={14} /> Perbarui Sinyal GPS
             </Btn>
             <Btn
               variant="accent"
@@ -495,7 +450,7 @@ function GpsClientPopup({
               onClick={onClose}
               disabled={loc.phase === 'loading'}
             >
-              <Check size={15} /> Gunakan Lokasi GPS
+              <Check size={15} /> Lanjutkan Presensi
             </Btn>
           </div>
         </div>
@@ -505,19 +460,15 @@ function GpsClientPopup({
 }
 
 export function AttendanceFlow({ mode, tenant, userId, onDone, needJournal, onGoJournal }) {
-  const { readLocation, currentIp, checkIn, checkOut } = useStore();
+  const { readLocation, checkIn, checkOut } = useStore();
   const { now } = useClock();
   const [loc, setLoc] = useState({ phase: 'loading' });
-  const [gpsMode, setGpsMode] = useState('inside');
   const [showGpsPopup, setShowGpsPopup] = useState(true);
   const [locAttempt, setLocAttempt] = useState(0);
   const [camera, setCamera] = useState(false);
   const [sending, setSending] = useState(false);
 
-  const run = useCallback((nextMode, openPopup = false) => {
-    if (nextMode) {
-      setGpsMode(nextMode);
-    }
+  const run = useCallback((openPopup = false) => {
     if (openPopup) {
       setShowGpsPopup(true);
     }
@@ -527,15 +478,13 @@ export function AttendanceFlow({ mode, tenant, userId, onDone, needJournal, onGo
 
   useEffect(() => {
     let cancelled = false;
-    readLocation(tenant, gpsMode)
+    readLocation(tenant)
       .then((reading) => {
         if (cancelled) return;
-        const ip = currentIp(tenant);
         setLoc({
           phase: 'done',
           reading,
-          ip,
-          result: validateLocation(tenant.office, reading, ip),
+          result: validateLocation(tenant.office, reading),
         });
       })
       .catch(() => {
@@ -549,9 +498,9 @@ export function AttendanceFlow({ mode, tenant, userId, onDone, needJournal, onGo
     return () => {
       cancelled = true;
     };
-  }, [locAttempt, gpsMode, readLocation, currentIp, tenant]);
+  }, [locAttempt, readLocation, tenant]);
 
-  const { result, reading, ip } = loc;
+  const { result, reading } = loc;
   const inside = loc.phase === 'done' && Boolean(result?.ok);
   const failed = result?.checks.filter((c) => !c.ok) ?? [];
   const radiusFail = result
@@ -559,14 +508,13 @@ export function AttendanceFlow({ mode, tenant, userId, onDone, needJournal, onGo
     : false;
 
   const submit = async (photo) => {
-    if (sending || !reading || !result || !ip) return;
+    if (sending || !reading || !result) return;
     setSending(true);
     const payload = {
       lat: reading.lat,
       lng: reading.lng,
       distance: Math.round(result.distance),
       accuracy: Math.round(reading.accuracy),
-      ip,
       photo,
     };
 
@@ -605,7 +553,7 @@ export function AttendanceFlow({ mode, tenant, userId, onDone, needJournal, onGo
       >
         <div className="px-4 py-2.5 bg-foreground text-background flex items-center justify-between">
           <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-accent">
-            Langkah 1 dari 2 · Lokasi
+            Langkah 1 dari 2 · Lokasi GPS
           </span>
           <span className="font-mono text-[10px] tabular-nums opacity-70">
             {fmtClock(now)}
@@ -619,7 +567,7 @@ export function AttendanceFlow({ mode, tenant, userId, onDone, needJournal, onGo
           >
             <Loader2 className="animate-spin" size={28} />
             <p className="mt-3 font-mono text-xs uppercase tracking-widest">
-              Membaca lokasi…
+              Membaca lokasi GPS…
             </p>
           </div>
         )}
@@ -633,7 +581,7 @@ export function AttendanceFlow({ mode, tenant, userId, onDone, needJournal, onGo
               variant="ghost"
               size="sm"
               className="mt-3"
-              onClick={() => void run()}
+              onClick={() => run(true)}
             >
               <RefreshCw size={14} /> Coba lagi
             </Btn>
@@ -714,7 +662,7 @@ export function AttendanceFlow({ mode, tenant, userId, onDone, needJournal, onGo
                     ))}
                   </ul>
                   <p className="mt-1.5 text-muted-foreground">
-                    Mendekatlah ke kantor lalu klik Periksa ulang lokasi.
+                    Mendekatlah ke titik kantor lalu klik Periksa ulang lokasi GPS.
                   </p>
                 </div>
               )}
@@ -763,10 +711,10 @@ export function AttendanceFlow({ mode, tenant, userId, onDone, needJournal, onGo
           variant="ghost"
           size="sm"
           className="w-full"
-          onClick={() => run(undefined, true)}
+          onClick={() => run(true)}
           disabled={loc.phase === 'loading'}
         >
-          <Crosshair size={14} /> Buka Pop-up API GPS / Periksa Ulang Lokasi
+          <Crosshair size={14} /> Periksa Ulang Lokasi GPS
         </Btn>
       </div>
 
@@ -774,9 +722,7 @@ export function AttendanceFlow({ mode, tenant, userId, onDone, needJournal, onGo
         <GpsClientPopup
           tenant={tenant}
           loc={loc}
-          gpsMode={gpsMode}
-          onSelectMode={(nextMode) => run(nextMode, true)}
-          onRefreshGps={() => run(gpsMode, true)}
+          onRefreshGps={() => run(true)}
           onClose={() => setShowGpsPopup(false)}
         />
       )}

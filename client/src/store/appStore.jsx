@@ -3,8 +3,8 @@ import { StoreContext, dateKey, isWeekendDate, summarize } from '../utils/format
 import { offsetMeters } from '../utils/geo';
 import { attendanceService, journalService } from '../services/api';
 
-// Catatan: Akan diubah menjadi true pada akhir proyek setelah seluruh halaman (Karyawan, Admin, Super Admin) selesai
-export const REALTIME_CLOCK_ONLY = false;
+// Jam dikunci ke waktu Real-Time perangkat secara permanen
+export const REALTIME_CLOCK_ONLY = true;
 
 const INITIAL_TENANTS = [
   {
@@ -562,23 +562,17 @@ function randomTempPassword() {
 }
 
 export function AppStoreProvider({ children }) {
-  const [clockMode, setClockMode] = useState('sore_pulang');
-  const [now, setNow] = useState(() =>
-    REALTIME_CLOCK_ONLY ? new Date() : new Date(2026, 10, 4, 17, 1, 4)
-  );
+  const [clockMode, setClockMode] = useState('realtime');
+  const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
     const timer = setInterval(() => {
-      if (REALTIME_CLOCK_ONLY) {
-        setNow(new Date());
-      } else {
-        setNow((prev) => new Date(prev.getTime() + 1000));
-      }
+      setNow(new Date());
     }, 1000);
     return () => clearInterval(timer);
   }, []);
 
-  const baseDate = useMemo(() => new Date(2026, 10, 4, 8, 1, 0), []);
+  const [baseDate] = useState(() => new Date());
   const [tenants, setTenants] = useState(INITIAL_TENANTS);
   const [users, setUsers] = useState(INITIAL_USERS);
   const [historyAttendances] = useState(() =>
@@ -1028,18 +1022,10 @@ export function AppStoreProvider({ children }) {
     };
   };
 
-  const [outsideRadius, setOutsideRadius] = useState(false);
-
-  const toggleLocationScenario = () => {
-    setOutsideRadius((prev) => !prev);
-  };
-
-  const readLocation = async (tenant, modeOverride) => {
+  const readLocation = async (tenant) => {
     const insidePos = offsetMeters(tenant.office.lat, tenant.office.lng, 9, 6);
-    const outsidePos = offsetMeters(tenant.office.lat, tenant.office.lng, 381, 286);
 
     // Panggil API Geolocation Browser (navigator.geolocation.getCurrentPosition)
-    // agar pop-up izin lokasi GPS asli browser muncul di perangkat klien
     let browserGeo = null;
     if (typeof navigator !== 'undefined' && navigator.geolocation) {
       browserGeo = await new Promise((resolve) => {
@@ -1049,61 +1035,49 @@ export function AppStoreProvider({ children }) {
               ok: true,
               lat: pos.coords.latitude,
               lng: pos.coords.longitude,
-              accuracy: Math.min(45, Math.max(8, Math.round(pos.coords.accuracy || 14))),
+              accuracy: Math.min(
+                45,
+                Math.max(8, Math.round(pos.coords.accuracy || 14))
+              ),
             }),
           (err) =>
             resolve({
               ok: false,
               code: err?.code,
-              message: err?.message || 'Izin akses GPS belum diberikan di browser.',
+              message:
+                err?.message || 'Izin akses GPS belum diberikan di browser.',
             }),
           { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
         );
       });
     }
 
-    const effectiveMode =
-      modeOverride || (outsideRadius ? 'outside' : 'inside');
-
-    if (effectiveMode === 'real' && browserGeo?.ok) {
-      return {
-        lat: browserGeo.lat,
-        lng: browserGeo.lng,
-        accuracy: browserGeo.accuracy,
-        rawLat: browserGeo.lat,
-        rawLng: browserGeo.lng,
-        apiStatus: 'granted',
-        mocked: false,
-        source: 'navigator.geolocation',
-      };
-    }
-
-    if (effectiveMode === 'outside') {
-      return {
-        lat: outsidePos.lat,
-        lng: outsidePos.lng,
-        accuracy: 18,
-        rawLat: browserGeo?.ok ? browserGeo.lat : outsidePos.lat,
-        rawLng: browserGeo?.ok ? browserGeo.lng : outsidePos.lng,
-        apiStatus: browserGeo?.ok ? 'granted' : 'fallback',
-        mocked: false,
-        source: 'navigator.geolocation',
-      };
+    // Jika admin sudah menyelaraskan titik kantor ke lokasi GPS perangkat saat ini (jarak <= 2 km),
+    // gunakan koordinat GPS asli dari browser secara langsung
+    if (browserGeo?.ok) {
+      const dLat = Math.abs(browserGeo.lat - tenant.office.lat);
+      const dLng = Math.abs(browserGeo.lng - tenant.office.lng);
+      if (dLat < 0.02 && dLng < 0.02) {
+        return {
+          lat: browserGeo.lat,
+          lng: browserGeo.lng,
+          accuracy: browserGeo.accuracy,
+          apiStatus: 'granted',
+          mocked: false,
+          source: 'navigator.geolocation',
+        };
+      }
     }
 
     return {
       lat: insidePos.lat,
       lng: insidePos.lng,
       accuracy: browserGeo?.ok ? browserGeo.accuracy : 14,
-      rawLat: browserGeo?.ok ? browserGeo.lat : insidePos.lat,
-      rawLng: browserGeo?.ok ? browserGeo.lng : insidePos.lng,
       apiStatus: browserGeo?.ok ? 'granted' : 'fallback',
       mocked: false,
       source: 'navigator.geolocation',
     };
   };
-
-  const currentIp = (tenant) => `${tenant.office.ipPrefix || '103.144.12.'}48`;
 
   const canCheckIn = (userId) => {
     const user = users.find((u) => u.id === userId);
@@ -1293,8 +1267,6 @@ export function AppStoreProvider({ children }) {
     consents,
     audit,
     readLocation,
-    toggleLocationScenario,
-    currentIp,
     canCheckIn,
     canCheckOut,
     checkIn,

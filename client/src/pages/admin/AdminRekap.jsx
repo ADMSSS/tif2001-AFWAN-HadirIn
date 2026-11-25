@@ -1,10 +1,13 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Camera,
+  ChevronLeft,
+  ChevronRight,
   FileDown,
   FileSpreadsheet,
   Lock,
   ScrollText,
+  Search,
   X,
 } from 'lucide-react';
 import {
@@ -29,7 +32,6 @@ import {
   TableWrap,
 } from '../../components/ui';
 
-const PAGE_CAP = 300;
 const ctl =
   'border-2 border-foreground rounded-md bg-card px-3 py-2 w-full outline-none focus-visible:shadow-[4px_4px_0_0_#c9f23c] transition-shadow';
 
@@ -50,7 +52,20 @@ export function AdminRekap({ session }) {
   const [to, setTo] = useState(() => dateKey(now));
   const [userId, setUserId] = useState('semua');
   const [status, setStatus] = useState('semua');
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [photo, setPhoto] = useState(null);
+
+  // Debounced Search (300ms) sesuai Bagian 1.1 Sprint 2
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchInput.trim().toLowerCase());
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   const staff = useMemo(
     () =>
@@ -65,13 +80,22 @@ export function AdminRekap({ session }) {
   const rows = useMemo(
     () =>
       attendances
-        .filter(
-          (a) =>
+        .filter((a) => {
+          const empName = (
+            users.find((u) => u.id === a.userId)?.fullName ?? ''
+          ).toLowerCase();
+          const matchSearch =
+            !debouncedSearch ||
+            empName.includes(debouncedSearch) ||
+            a.date.includes(debouncedSearch);
+          return (
             a.date >= from &&
             a.date <= to &&
             (userId === 'semua' || a.userId === userId) &&
-            (status === 'semua' || a.status === status)
-        )
+            (status === 'semua' || a.status === status) &&
+            matchSearch
+          );
+        })
         .sort((a, b) =>
           a.date === b.date
             ? a.checkIn < b.checkIn
@@ -81,8 +105,15 @@ export function AdminRekap({ session }) {
               ? 1
               : -1
         ),
-    [attendances, from, to, userId, status]
+    [attendances, users, from, to, userId, status, debouncedSearch]
   );
+
+  // Metadata Paginasi (Offset = (Page - 1) * Limit) sesuai Bagian 1.1 PDF
+  const totalRows = rows.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / limit));
+  const currentPage = Math.min(page, totalPages);
+  const offset = (currentPage - 1) * limit;
+  const pagedRows = rows.slice(offset, offset + limit);
 
   const dur = (a) => (a.checkOut ? diffMinutes(a.checkOut, a.checkIn) : null);
 
@@ -121,7 +152,6 @@ export function AdminRekap({ session }) {
       'Durasi',
       'Jarak (m)',
       'Akurasi (m)',
-      'IP',
       'Status',
     ];
     const csvRows = [
@@ -136,7 +166,6 @@ export function AdminRekap({ session }) {
           d === null ? '-' : hm(d),
           Math.round(a.distance ?? 12),
           Math.round(a.accuracy ?? 14),
-          a.ip || `${tenant.office.ipPrefix}48`,
           a.status === 'tepat' ? 'Tepat waktu' : 'Terlambat',
         ].join(',');
       }),
@@ -186,7 +215,6 @@ export function AdminRekap({ session }) {
           <td>${d === null ? '—' : hm(d)}</td>
           <td>${Math.round(a.distance ?? 12)} m</td>
           <td>±${Math.round(a.accuracy ?? 14)} m</td>
-          <td>${a.ip || `${tenant.office.ipPrefix}48`}</td>
           <td>${a.status === 'tepat' ? 'Tepat waktu' : 'Terlambat'}</td>
         </tr>`;
       })
@@ -209,165 +237,207 @@ export function AdminRekap({ session }) {
           <p>Periode ${fmtDate(from)} s.d. ${fmtDate(to)} | Dicetak ${fmtDate(now, 'dd/MM/yyyy HH:mm')} oleh ${session.name}</p>
           <table>
             <thead>
-              <tr><th>Nama</th><th>Jabatan</th><th>Hari kerja</th><th>Hadir</th><th>Tepat</th><th>Terlambat</th><th>Tidak hadir</th><th>% Hadir</th><th>% Tepat</th><th>Jam</th></tr>
+              <tr>
+                <th>Nama</th><th>Jabatan</th><th>Hari Kerja</th><th>Hadir</th><th>Tepat</th><th>Terlambat</th><th>Tidak Hadir</th><th>% Hadir</th><th>% Tepat</th><th>Jam Kerja</th>
+              </tr>
             </thead>
             <tbody>${sumHtml}</tbody>
           </table>
           <table>
             <thead>
-              <tr><th>Tanggal</th><th>Nama</th><th>Masuk</th><th>Pulang</th><th>Durasi</th><th>Jarak</th><th>Akurasi</th><th>IP</th><th>Status</th></tr>
+              <tr>
+                <th>Tanggal</th><th>Nama</th><th>Masuk</th><th>Pulang</th><th>Durasi</th><th>Jarak</th><th>Akurasi</th><th>Status</th>
+              </tr>
             </thead>
             <tbody>${detHtml}</tbody>
           </table>
-          <script>window.onload = () => window.print();</script>
         </body>
       </html>
     `);
     win.document.close();
+    win.print();
   };
 
   return (
     <div>
-      <PageHead kicker={tenant.name} title="Rekap" />
+      <PageHead
+        kicker={`${tenant.name} · ${tenant.code}`}
+        title="Rekap & audit"
+        action={
+          tab === 'presensi' && (
+            <div className="flex flex-wrap gap-2">
+              <Btn
+                variant="accent"
+                size="sm"
+                onClick={exportXlsx}
+                disabled={!rangeOk || rows.length === 0}
+              >
+                <FileSpreadsheet className="size-4" /> Ekspor XLSX
+              </Btn>
+              <Btn
+                variant="ghost"
+                size="sm"
+                onClick={exportPdf}
+                disabled={!rangeOk || rows.length === 0}
+              >
+                <FileDown className="size-4" /> Ekspor PDF
+              </Btn>
+            </div>
+          )
+        }
+      />
 
       <div
         role="tablist"
-        aria-label="Bagian rekap"
+        aria-label="Jenis rekap"
         className="inline-flex border-2 border-foreground rounded-md overflow-hidden mb-6"
       >
         {[
-          ['presensi', 'Presensi'],
-          ['audit', 'Audit trail'],
-        ].map(([k, l]) => (
+          ['presensi', `Presensi (${rows.length})`],
+          ['audit', `Audit trail (${audit.length})`],
+        ].map(([id, label]) => (
           <button
-            key={k}
+            key={id}
             role="tab"
             type="button"
-            aria-selected={tab === k}
-            onClick={() => setTab(k)}
-            className={`px-5 py-2.5 font-display font-bold transition-colors cursor-pointer ${
-              tab === k
+            aria-selected={tab === id}
+            onClick={() => setTab(id)}
+            className={`font-display font-bold px-4 py-2 text-sm transition-colors cursor-pointer ${
+              tab === id
                 ? 'bg-foreground text-accent'
                 : 'bg-card hover:bg-secondary'
             }`}
           >
-            {l}
+            {label}
           </button>
         ))}
       </div>
 
       {tab === 'presensi' && (
         <div role="tabpanel" className="space-y-6">
-          <div className="grid sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1.4fr_1fr_auto] gap-4 items-end">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-3">
             <label className="block">
-              <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-                Dari
+              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+                Cari Kata Kunci
+              </span>
+              <div className="mt-1 flex items-center gap-2 border-2 border-foreground rounded-md bg-card px-3 py-2 focus-within:shadow-[4px_4px_0_0_#c9f23c]">
+                <Search className="size-4 text-muted-foreground shrink-0" />
+                <input
+                  type="text"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  placeholder="Nama atau tanggal..."
+                  className="w-full bg-transparent outline-none text-sm"
+                />
+              </div>
+            </label>
+            <label className="block">
+              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+                Dari tanggal
               </span>
               <input
                 type="date"
                 value={from}
-                max={to}
-                onChange={(e) => setFrom(e.target.value)}
-                className={`${ctl} mt-1.5 tabular-nums`}
+                onChange={(e) => {
+                  setFrom(e.target.value);
+                  setPage(1);
+                }}
+                className={`${ctl} mt-1 tabular-nums`}
               />
             </label>
             <label className="block">
-              <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-                Sampai
+              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+                Sampai tanggal
               </span>
               <input
                 type="date"
                 value={to}
-                min={from}
-                onChange={(e) => setTo(e.target.value)}
-                className={`${ctl} mt-1.5 tabular-nums`}
+                onChange={(e) => {
+                  setTo(e.target.value);
+                  setPage(1);
+                }}
+                className={`${ctl} mt-1 tabular-nums`}
               />
             </label>
             <label className="block">
-              <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
                 Karyawan
               </span>
               <select
                 value={userId}
-                onChange={(e) => setUserId(e.target.value)}
-                className={`${ctl} mt-1.5`}
+                onChange={(e) => {
+                  setUserId(e.target.value);
+                  setPage(1);
+                }}
+                className={`${ctl} mt-1`}
               >
                 <option value="semua">Semua karyawan</option>
                 {staff.map((u) => (
                   <option key={u.id} value={u.id}>
                     {u.fullName}
-                    {u.active ? '' : ' (nonaktif)'}
                   </option>
                 ))}
               </select>
             </label>
             <label className="block">
-              <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
                 Status
               </span>
               <select
                 value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                className={`${ctl} mt-1.5`}
+                onChange={(e) => {
+                  setStatus(e.target.value);
+                  setPage(1);
+                }}
+                className={`${ctl} mt-1`}
               >
                 <option value="semua">Semua status</option>
                 <option value="tepat">Tepat waktu</option>
                 <option value="terlambat">Terlambat</option>
               </select>
             </label>
-            <div className="flex gap-2 sm:col-span-2 lg:col-span-1">
-              <Btn
-                variant="ghost"
-                onClick={exportXlsx}
-                disabled={!rangeOk || !rows.length}
-              >
-                <FileSpreadsheet className="size-4" />
-                Ekspor XLSX
-              </Btn>
-              <Btn onClick={exportPdf} disabled={!rangeOk || !rows.length}>
-                <FileDown className="size-4" />
-                Ekspor PDF
-              </Btn>
-            </div>
           </div>
 
           {!rangeOk ? (
-            <p
-              role="alert"
-              className="border-2 border-foreground bg-destructive text-destructive-foreground rounded-md px-4 py-3 font-bold"
-            >
-              Tanggal awal tidak boleh melewati tanggal akhir.
-            </p>
+            <Empty
+              title="Rentang tanggal tidak valid"
+              text="Tanggal awal harus sebelum atau sama dengan tanggal akhir."
+            />
           ) : (
             <>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <Stat
-                  label="Catatan presensi"
+                  tone="accent"
+                  label="Catatan"
                   value={rows.length}
-                  tone="dark"
+                  hint={`${fmtDate(from, 'd MMM')}–${fmtDate(to, 'd MMM yyyy')}`}
                 />
-                <Stat label="Tepat waktu" value={tepat} tone="accent" />
+                <Stat
+                  label="Tepat waktu"
+                  value={`${rows.length ? Math.round((tepat / rows.length) * 100) : 0}%`}
+                  hint={`${tepat} dari ${rows.length}`}
+                />
                 <Stat
                   label="Terlambat"
                   value={rows.length - tepat}
-                  tone={rows.length - tepat ? 'alert' : 'card'}
+                  hint="catatan"
                 />
                 <Stat
+                  tone="dark"
                   label="Total jam kerja"
                   value={Math.round(totalMin / 60)}
-                  hint="dari presensi lengkap"
+                  hint={hm(totalMin)}
                 />
               </div>
 
               {rows.length === 0 ? (
                 <Empty
-                  icon={<ScrollText className="size-8" />}
-                  title="Tidak ada presensi pada filter ini"
-                  text="Perluas rentang tanggal atau ubah filter karyawan dan status."
+                  title="Tidak ada catatan presensi"
+                  text="Ubah filter tanggal, karyawan, atau kata kunci pencarian."
                 />
               ) : (
                 <>
-                  <TableWrap min={980}>
+                  <TableWrap min={860}>
                     <thead className={theadCls}>
                       <tr>
                         {[
@@ -378,7 +448,6 @@ export function AdminRekap({ session }) {
                           'Durasi',
                           'Jarak',
                           'Akurasi',
-                          'IP',
                           'Status',
                           'Foto',
                         ].map((h) => (
@@ -389,7 +458,7 @@ export function AdminRekap({ session }) {
                       </tr>
                     </thead>
                     <tbody className="divide-y-2 divide-foreground/10">
-                      {rows.slice(0, PAGE_CAP).map((a) => {
+                      {pagedRows.map((a) => {
                         const d = dur(a);
                         return (
                           <tr
@@ -422,9 +491,6 @@ export function AdminRekap({ session }) {
                             </td>
                             <td className="px-4 py-2.5 tabular-nums">
                               ±{Math.round(a.accuracy ?? 14)} m
-                            </td>
-                            <td className="px-4 py-2.5 font-mono text-xs tabular-nums">
-                              {a.ip || `${tenant.office.ipPrefix}48`}
                             </td>
                             <td className="px-4 py-2.5">
                               <Pill tone={a.status === 'tepat' ? 'ok' : 'warn'}>
@@ -465,12 +531,58 @@ export function AdminRekap({ session }) {
                       })}
                     </tbody>
                   </TableWrap>
-                  <p className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
-                    {rows.length > PAGE_CAP
-                      ? `Menampilkan ${PAGE_CAP} dari ${rows.length} baris; ekspor memuat semuanya.`
-                      : `${rows.length} baris`}{' '}
-                    · catatan presensi terkunci dan tidak dapat diubah
-                  </p>
+
+                  {/* Kontrol Paginasi Standar Sprint 2 (totalRows, totalPages, currentPage, limit) */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-2 border-foreground rounded-md bg-card px-4 py-3">
+                    <div className="flex items-center gap-3 text-xs font-mono">
+                      <span>
+                        Menampilkan <b>{offset + 1}</b>–
+                        <b>{Math.min(offset + limit, totalRows)}</b> dari{' '}
+                        <b>{totalRows}</b> baris
+                      </span>
+                      <label className="inline-flex items-center gap-1.5">
+                        <span>Limit:</span>
+                        <select
+                          value={limit}
+                          onChange={(e) => {
+                            setLimit(Number(e.target.value));
+                            setPage(1);
+                          }}
+                          className="border border-foreground rounded bg-background px-1.5 py-0.5 font-bold"
+                        >
+                          {[10, 25, 50].map((n) => (
+                            <option key={n} value={n}>
+                              {n}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Btn
+                        variant="ghost"
+                        size="sm"
+                        disabled={currentPage <= 1}
+                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      >
+                        <ChevronLeft className="size-4" /> Sebelumnya
+                      </Btn>
+                      <span className="font-mono text-xs font-bold px-2 tabular-nums">
+                        Halaman {currentPage} / {totalPages}
+                      </span>
+                      <Btn
+                        variant="ghost"
+                        size="sm"
+                        disabled={currentPage >= totalPages}
+                        onClick={() =>
+                          setPage((p) => Math.min(totalPages, p + 1))
+                        }
+                      >
+                        Berikutnya <ChevronRight className="size-4" />
+                      </Btn>
+                    </div>
+                  </div>
                 </>
               )}
             </>

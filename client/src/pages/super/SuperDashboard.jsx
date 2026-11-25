@@ -12,6 +12,8 @@ import {
   dateKey,
   diffCalendarDays,
   fmtDate,
+  thCls,
+  theadCls,
   useClock,
   useStore,
 } from '../../utils/formatters';
@@ -24,8 +26,6 @@ import {
   Pill,
   Stat,
   TableWrap,
-  theadCls,
-  thCls,
 } from '../../components/ui';
 
 const SCHEMA = [

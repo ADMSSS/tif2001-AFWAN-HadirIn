@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { KeyRound } from 'lucide-react';
-import { useStore } from '../utils/formatters';
-import { Btn, Field, inputCls } from './ui';
+import { useStore, inputCls } from '../utils/formatters';
+import { Btn, Field } from './ui';
 
 /**
  * ForcePassword - 1:1 dengan figma desain/src/app/component/ForcePassword.tsx
